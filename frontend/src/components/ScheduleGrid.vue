@@ -254,13 +254,15 @@ function span(schedule: Schedule): string {
   gap: 1px;
   overflow: hidden;
   border: none;
-  border-radius: 3px;
+  border-radius: 4px;
+  box-shadow: inset 0 0 0 1px rgb(23 24 28 / 10%);
   text-align: left;
   transition: filter 120ms ease;
 }
 
+/* 파스텔은 밝히면 배경에 묻힌다. 눌러 주는 쪽이 눈에 띈다. */
 .block:hover {
-  filter: brightness(1.07) saturate(1.05);
+  filter: brightness(0.955);
 }
 
 .title {

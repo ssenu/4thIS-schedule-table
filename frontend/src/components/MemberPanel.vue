@@ -79,9 +79,10 @@ async function commitAll() {
               class="name"
               :class="{
                 on: store.selectedIds.includes(element.id),
-                mine: store.canEdit(element.id),
+                mine: store.unlocked[element.id] !== undefined,
                 grab: store.isAdmin,
               }"
+              :title="element.name"
               @click="store.toggleSelection(element.id)"
             >
               {{ element.name }}
@@ -116,15 +117,15 @@ async function commitAll() {
 .side {
   display: flex;
   flex-direction: column;
-  width: 168px;
-  flex: 0 0 168px;
+  width: 240px;
+  flex: 0 0 240px;
   border-right: 1px solid var(--rule);
 }
 
 .scroll {
   flex: 1;
   overflow-y: auto;
-  padding: 2px 12px 8px 0;
+  padding: 2px 14px 8px 0;
 }
 
 .group + .group {
@@ -132,7 +133,7 @@ async function commitAll() {
 }
 
 h2 {
-  margin: 0 0 6px;
+  margin: 0 0 8px;
   font-size: 10.5px;
   font-weight: 600;
   letter-spacing: 0.14em;
@@ -140,57 +141,48 @@ h2 {
   color: var(--mute);
 }
 
+/* 이름은 한 줄에 셋씩. 좁아지면 알아서 두 줄이 된다. */
 .names {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-height: 22px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  min-height: 30px;
 }
 
 /*
- * 두 가지를 한 줄로 말한다.
- * 네모가 차 있으면 표에 보이는 사람, 글씨가 굵으면 내가 고칠 수 있는 사람.
+ * 채워진 박스는 표에 보이는 사람, 굵은 글씨는 내가 비밀번호를 넣어 둔 이름이다.
+ * 두 가지를 기호 없이 박스 하나로 말한다. (관리자는 모두를 고칠 수 있지만
+ * 그건 굵기로 말하지 않는다 — 전부 굵어지면 아무것도 구분하지 못한다.)
  */
 .name {
   font: inherit;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  width: 100%;
-  padding: 4px 6px;
-  border: none;
-  border-radius: 4px;
-  background: none;
-  color: var(--mute);
-  text-align: left;
-  cursor: pointer;
-  transition: background 110ms ease, color 110ms ease;
-}
-
-.name::before {
-  content: "";
-  flex: 0 0 auto;
-  width: 9px;
-  height: 9px;
+  font-size: 12.5px;
+  padding: 7px 6px;
   border: 1px solid var(--rule-strong);
-  border-radius: 2px;
+  border-radius: 11px;
+  background: var(--paper);
+  color: var(--mute);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 110ms ease, color 110ms ease, border-color 110ms ease;
 }
 
 .name:hover {
-  background: rgb(23 24 28 / 5%);
-}
-
-.name.on {
+  border-color: var(--ink-soft);
   color: var(--ink);
 }
 
-.name.on::before {
+.name.on {
   background: var(--ink);
   border-color: var(--ink);
+  color: var(--paper);
 }
 
 .name.mine {
-  font-weight: 650;
+  font-weight: 700;
 }
 
 .name.grab {
@@ -198,8 +190,9 @@ h2 {
 }
 
 .none {
+  grid-column: 1 / -1;
   margin: 0;
-  padding: 4px 6px;
+  padding: 4px 2px;
   font-size: 12px;
   color: var(--rule-strong);
 }
@@ -208,7 +201,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 12px 0 0;
+  padding: 12px 14px 0 0;
   border-top: 1px solid var(--rule);
 }
 
@@ -224,6 +217,7 @@ h2 {
   line-height: 1.4;
   color: var(--mute);
 }
+
 @media (max-width: 860px) {
   .side {
     width: 100%;
@@ -236,6 +230,11 @@ h2 {
   .scroll {
     max-height: 208px;
     padding-right: 0;
+  }
+
+  /* 폭이 넓어지므로 셋으로 묶어 둘 필요가 없다. */
+  .names {
+    grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
   }
 
   .foot {

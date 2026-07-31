@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-from app.constants import DEFAULT_CATEGORIES
+from app.constants import DEFAULT_CATEGORIES, LEGACY_COLORS
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS categories (
@@ -71,7 +71,16 @@ def initialize(conn: sqlite3.Connection, admin_password_hash: str) -> None:
             "INSERT INTO categories (name, sort_order) VALUES (?, ?)",
             [(name, index) for index, name in enumerate(DEFAULT_CATEGORIES)],
         )
+    _migrate_legacy_colors(conn)
     set_setting(conn, "admin_password_hash", admin_password_hash)
+
+
+def _migrate_legacy_colors(conn: sqlite3.Connection) -> None:
+    """팔레트가 바뀌기 전에 저장된 색을 같은 자리의 새 색으로 옮긴다."""
+    conn.executemany(
+        "UPDATE schedules SET color = ? WHERE color = ?",
+        [(new, old) for old, new in LEGACY_COLORS.items()],
+    )
 
 
 def get_setting(conn: sqlite3.Connection, key: str) -> str | None:
@@ -85,3 +94,4 @@ def set_setting(conn: sqlite3.Connection, key: str, value: str) -> None:
         " ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         (key, value),
     )
+
