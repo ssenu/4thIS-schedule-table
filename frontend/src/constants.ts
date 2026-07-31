@@ -22,3 +22,9 @@ export const PALETTE = [
 export const NAME_MAX_LEN = 20
 export const TITLE_MAX_LEN = 30
 
+/**
+ * 격자 치수. style.css 의 --ruler-w, --col-min 과 같은 값이어야 한다.
+ * 한 페이지에 요일 몇 개가 들어가는지 재는 계산이 이 값을 쓴다.
+ */
+export const RULER_WIDTH = 46
+export const MIN_COLUMN_WIDTH = 96

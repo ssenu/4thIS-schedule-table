@@ -121,3 +121,30 @@ describe('buildBlocks', () => {
     expect(blocks.map((b) => b.schedule.id)).toEqual([1, 2])
   })
 })
+
+describe('요일 페이지', () => {
+  it('페이지에 실린 요일만큼만 열을 만든다', () => {
+    expect(buildColumns(THREE, [3, 4, 5, 6])).toHaveLength(4 * 3)
+  })
+
+  it('페이지 안에서는 왼쪽 끝부터 자리를 잡는다', () => {
+    const [first] = buildColumns(THREE, [3, 4, 5, 6])
+    expect(first).toMatchObject({ day: 3, gridColumn: 2 })
+  })
+
+  it('헤더도 그 페이지의 요일만 이름을 단다', () => {
+    const headers = buildDayHeaders(3, [3, 4, 5, 6])
+    expect(headers.map((head) => head.label)).toEqual(['목', '금', '토', '일'])
+    expect(headers[0].gridColumnStart).toBe(2)
+  })
+
+  it('다른 페이지의 일정은 자리가 없어 빠진다', () => {
+    const monday = schedule({ day_of_week: 0 })
+    expect(buildBlocks(THREE, [monday], [3, 4, 5, 6])).toEqual([])
+    expect(buildBlocks(THREE, [monday], [0, 1, 2])).toHaveLength(1)
+  })
+
+  it('열 개수도 페이지 기준으로 센다', () => {
+    expect(totalColumns(3, 4)).toBe(1 + 12)
+  })
+})

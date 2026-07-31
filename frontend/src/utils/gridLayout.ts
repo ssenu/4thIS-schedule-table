@@ -5,6 +5,8 @@ import type { Member, Schedule } from '@/types'
 export const HEADER_ROWS = 2
 /** 맨 왼쪽 시간축이 차지하는 열 번호. */
 export const TIME_COLUMN = 1
+/** 페이지를 나누지 않을 때의 기본값 — 월요일부터 일요일까지. */
+export const EVERY_DAY = DAY_NAMES.map((_, index) => index)
 
 export interface GridColumn {
   day: number
@@ -32,19 +34,30 @@ export function rowForSlot(slot: number): number {
 }
 
 /** 시간축까지 포함한 전체 열 개수. */
-export function totalColumns(memberCount: number): number {
-  return TIME_COLUMN + DAY_NAMES.length * memberCount
+export function totalColumns(
+  memberCount: number,
+  dayCount: number = DAY_NAMES.length,
+): number {
+  return TIME_COLUMN + dayCount * memberCount
 }
 
-/** 요일 바깥, 멤버 안쪽 순서로 열을 펼친다. */
-export function buildColumns(members: Member[]): GridColumn[] {
+/**
+ * 요일 바깥, 멤버 안쪽 순서로 열을 펼친다.
+ *
+ * days 는 이 페이지가 보여 줄 요일이다. 열 번호는 요일의 실제 번호가 아니라
+ * 페이지 안에서의 자리로 매겨지므로, 목·금·토·일 페이지도 왼쪽 끝부터 채워진다.
+ */
+export function buildColumns(
+  members: Member[],
+  days: number[] = EVERY_DAY,
+): GridColumn[] {
   const columns: GridColumn[] = []
-  DAY_NAMES.forEach((_, day) => {
+  days.forEach((day, dayIndex) => {
     members.forEach((member, index) => {
       columns.push({
         day,
         member,
-        gridColumn: TIME_COLUMN + 1 + day * members.length + index,
+        gridColumn: TIME_COLUMN + 1 + dayIndex * members.length + index,
       })
     })
   })
@@ -52,14 +65,17 @@ export function buildColumns(members: Member[]): GridColumn[] {
 }
 
 /** 요일 헤더는 그 요일의 멤버 열 전체를 덮는다. */
-export function buildDayHeaders(memberCount: number): DayHeader[] {
+export function buildDayHeaders(
+  memberCount: number,
+  days: number[] = EVERY_DAY,
+): DayHeader[] {
   if (memberCount === 0) {
     return []
   }
-  return DAY_NAMES.map((label, day) => ({
+  return days.map((day, dayIndex) => ({
     day,
-    label,
-    gridColumnStart: TIME_COLUMN + 1 + day * memberCount,
+    label: DAY_NAMES[day],
+    gridColumnStart: TIME_COLUMN + 1 + dayIndex * memberCount,
     span: memberCount,
   }))
 }
@@ -69,13 +85,15 @@ export function buildDayHeaders(memberCount: number): DayHeader[] {
  *
  * 몇 슬롯에 걸치든 블록은 하나다. 09:00~13:00 일정은 8칸 높이의
  * 세로로 긴 블록 하나가 되고, 제목은 그 안에 한 번만 쓰인다.
+ * 이 페이지에 없는 요일이나 고르지 않은 사람의 일정은 자리가 없어 빠진다.
  */
 export function buildBlocks(
   members: Member[],
   schedules: Schedule[],
+  days: number[] = EVERY_DAY,
 ): ScheduleBlock[] {
   const columnOf = new Map<string, number>()
-  for (const column of buildColumns(members)) {
+  for (const column of buildColumns(members, days)) {
     columnOf.set(`${column.day}:${column.member.id}`, column.gridColumn)
   }
 
@@ -85,7 +103,7 @@ export function buildBlocks(
       `${schedule.day_of_week}:${schedule.member_id}`,
     )
     if (gridColumn === undefined) {
-      continue // 선택되지 않은 멤버의 일정
+      continue
     }
     blocks.push({
       schedule,

@@ -228,7 +228,7 @@ h2 {
   }
 
   .scroll {
-    max-height: 208px;
+    max-height: 244px;
     padding-right: 0;
   }
 

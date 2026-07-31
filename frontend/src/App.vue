@@ -161,6 +161,7 @@ onUnmounted(() => {
         <ScheduleGrid
           :members="store.selectedMembers"
           :schedules="store.visibleSchedules"
+          :paused="anyDialogOpen"
           @select="openBlock"
         />
       </div>
@@ -270,6 +271,8 @@ h1 {
 
   .body {
     flex-direction: column;
+    /* 세로로 쌓이면 flex-start 는 가로 정렬이 되어 자식이 내용 폭으로 줄어든다. */
+    align-items: stretch;
     gap: 14px;
   }
 
