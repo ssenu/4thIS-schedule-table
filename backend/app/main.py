@@ -13,6 +13,7 @@ from app.routers import auth as auth_router
 from app.routers import board
 from app.routers import categories
 from app.routers import members
+from app.routers import schedules
 
 
 def create_app(conn: sqlite3.Connection, limiter: AttemptLimiter) -> FastAPI:
@@ -35,6 +36,7 @@ def create_app(conn: sqlite3.Connection, limiter: AttemptLimiter) -> FastAPI:
     app.include_router(auth_router.router)
     app.include_router(categories.router)
     app.include_router(members.router)
+    app.include_router(schedules.router)
     return app
 
 
