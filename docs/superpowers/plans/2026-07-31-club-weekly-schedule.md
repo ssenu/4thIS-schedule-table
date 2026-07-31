@@ -6749,3 +6749,49 @@ git commit -m "feat: add polling sync, static serving, docker image, and readme"
 - 카테고리와 이름 배치는 관리자 비밀번호 없이는 바뀌지 않는다
 - 09:00~13:00 일정이 8칸짜리 블록 하나로 그려지고 제목이 한 번만 보인다
 - 화면 어디에도 날짜가 없다
+
+---
+
+## 실행 중 계획에서 벗어난 점
+
+계획대로 구현하다 실제로 막힌 지점들과, 그때 내린 결정을 남긴다.
+
+### 1. 운영 앱을 모듈 수준에서 만들면 테스트가 환경변수에 묶인다
+
+Task 4의 `app = _build_production_app()` 은 `from app.main import create_app` 만
+해도 실행되어, 테스트가 `ADMIN_PASSWORD` 없이는 수집조차 되지 않았다.
+
+→ `create_production_app()` 팩토리로 바꾸고 모듈 수준 인스턴스를 없앴다.
+uvicorn 실행 명령이 `app.main:create_production_app --factory` 로 바뀐다.
+
+### 2. sqlite 커넥션을 스레드 사이에서 공유해야 한다
+
+FastAPI는 동기 핸들러를 스레드풀에서 돌리는데 sqlite3는 기본적으로 커넥션을
+만든 스레드에서만 쓸 수 있어 `ProgrammingError` 가 났다.
+
+→ `check_same_thread=False`. 이 파이썬의 `sqlite3.threadsafety` 가 3(serialized)
+이라 SQLite가 내부에서 접근을 직렬화한다. `connect()` 가 시작할 때 이 값을
+확인하고, 3 미만이면 명시적으로 거부한다.
+
+### 3. HTTP 헤더에는 한글 비밀번호를 실을 수 없다
+
+관리자 비밀번호는 길이·문자 제한이 없다고 정했는데, 한글을 헤더에 넣으면
+`UnicodeEncodeError` 가 난다. 브라우저 `fetch` 도 같은 이유로 거부한다.
+
+→ 클라이언트가 `encodeURIComponent` 로 감싸 보내고 서버가 `urllib.parse.unquote`
+로 푼다 (`app.auth.read_password_header`). 한글 관리자 비밀번호 테스트를 추가했다.
+
+### 4. 컴포넌트 태스크의 순서를 합쳤다
+
+계획은 Task 13~19에서 `App.vue` 를 일곱 번 고쳐 가며 매번 브라우저로 확인하는
+구성이었다. 이 환경에서는 단계마다 브라우저를 띄우는 대신, 컴포넌트를 모두 만든
+뒤 `App.vue` 를 최종 형태로 한 번 쓰고 통합 확인했다. 각 컴포넌트를 쓸 때마다
+`npm run build`(vue-tsc 타입 검사 포함)로 조기에 오류를 잡았다.
+
+`MemberPanel` 도 Task 14의 단순 버전을 만들었다가 Task 18에서 교체하는 대신
+처음부터 드래그 지원 버전으로 만들었다.
+
+### 5. 테스트 개수
+
+계획에 적어 둔 기대값 중 Task 3은 13개가 아니라 12개였다. 다른 값은 3번 변경으로
+테스트가 하나 늘면서 결과적으로 맞았다. 최종 개수는 백엔드 146개, 프론트 51개다.
