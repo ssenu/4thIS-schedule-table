@@ -42,10 +42,21 @@ CREATE TABLE IF NOT EXISTS settings (
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
-    """커넥션을 연다. 행은 이름으로 접근하고, 외래키 제약을 켠다."""
+    """커넥션을 연다. 행은 이름으로 접근하고, 외래키 제약을 켠다.
+
+    커넥션 하나를 앱 전체가 공유한다. FastAPI는 동기 핸들러를 스레드풀에서
+    돌리므로 check_same_thread를 꺼야 하는데, sqlite3.threadsafety가 3
+    (serialized)이라 SQLite가 내부에서 접근을 직렬화해 준다. 확인:
+
+        python -c "import sqlite3; print(sqlite3.threadsafety)"  # 3
+    """
+    if sqlite3.threadsafety < 3:
+        raise RuntimeError(
+            "이 파이썬의 sqlite3는 커넥션 공유를 직렬화하지 않습니다."
+        )
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(db_path, isolation_level=None)
+    conn = sqlite3.connect(db_path, isolation_level=None, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn
