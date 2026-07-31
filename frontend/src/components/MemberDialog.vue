@@ -22,10 +22,8 @@ const message = ref('')
 const busy = ref(false)
 const confirmingDelete = ref(false)
 
-const title = computed(() => (props.mode === 'create' ? '이름 등록' : '이름 수정'))
-
 function fail(err: unknown) {
-  message.value = err instanceof ApiError ? err.message : '요청에 실패했습니다.'
+  message.value = err instanceof ApiError ? err.message : '요청이 실패했습니다.'
 }
 
 async function create() {
@@ -103,16 +101,28 @@ async function remove() {
 </script>
 
 <template>
-  <BaseDialog :title="title" @close="emit('close')">
-    <form @submit.prevent="submit">
-      <label>
-        이름
-        <input v-model="name" :maxlength="NAME_MAX_LEN" autocomplete="off" />
+  <BaseDialog
+    :title="mode === 'create' ? '이름 등록' : '이름 수정'"
+    @close="emit('close')"
+  >
+    <form class="stack" @submit.prevent="submit">
+      <p v-if="mode === 'create'" class="notice notice--quiet">
+        비밀번호는 내 일정을 남이 고치지 못하게 막습니다. 숫자 4자리면 됩니다.
+      </p>
+
+      <label class="field">
+        <span>이름</span>
+        <input
+          v-model="name"
+          class="input"
+          :maxlength="NAME_MAX_LEN"
+          autocomplete="off"
+        />
       </label>
 
-      <label v-if="mode === 'create' || store.isAdmin">
-        카테고리
-        <select v-model.number="categoryId">
+      <label v-if="mode === 'create' || store.isAdmin" class="field">
+        <span>카테고리</span>
+        <select v-model.number="categoryId" class="select">
           <option
             v-for="category in store.sortedCategories"
             :key="category.id"
@@ -122,129 +132,71 @@ async function remove() {
           </option>
         </select>
       </label>
-      <p v-else class="hint">소속 변경은 관리자에게 요청해 주세요.</p>
+      <p v-else class="notice notice--quiet">
+        소속은 관리자가 바꿉니다.
+      </p>
 
-      <label>
-        {{ mode === 'create' ? '비밀번호 (숫자 4자리)' : '새 비밀번호 (바꿀 때만)' }}
+      <label class="field">
+        <span>{{ mode === 'create' ? '비밀번호' : '새 비밀번호' }}</span>
         <input
           v-model="password"
+          class="input"
           inputmode="numeric"
           maxlength="4"
-          placeholder="숫자 4자리"
+          :placeholder="mode === 'create' ? '숫자 4자리' : '바꿀 때만 채우세요'"
           autocomplete="off"
         />
       </label>
 
-      <p v-if="message" class="message">{{ message }}</p>
+      <p v-if="message" class="notice notice--alarm">{{ message }}</p>
 
-      <div v-if="confirmingDelete" class="confirm">
+      <p v-if="confirmingDelete" class="notice notice--warn confirm">
         <span>{{ target?.name }} 님의 이름과 일정을 모두 지웁니다.</span>
-        <button type="button" @click="confirmingDelete = false">아니오</button>
-        <button type="button" class="danger" :disabled="busy" @click="remove">
-          삭제합니다
+        <button
+          type="button"
+          class="btn btn--sm"
+          @click="confirmingDelete = false"
+        >
+          그만두기
         </button>
-      </div>
+        <button
+          type="button"
+          class="btn btn--sm btn--fill-danger"
+          :disabled="busy"
+          @click="remove"
+        >
+          지웁니다
+        </button>
+      </p>
 
-      <div class="actions">
+      <div class="row-end">
         <button
           v-if="mode === 'edit' && !confirmingDelete"
           type="button"
-          class="danger"
+          class="btn btn--danger"
           @click="confirmingDelete = true"
         >
           삭제
         </button>
         <span class="spacer" />
-        <button type="button" @click="emit('close')">취소</button>
-        <button type="submit" class="primary" :disabled="busy">저장</button>
+        <button type="button" class="btn" @click="emit('close')">취소</button>
+        <button type="submit" class="btn btn--primary" :disabled="busy">
+          저장
+        </button>
       </div>
     </form>
   </BaseDialog>
 </template>
 
 <style scoped>
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-input,
-select {
-  padding: 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  font-size: 14px;
-  color: var(--text);
-}
-
-.hint,
-.message {
-  margin: 0;
-  font-size: 13px;
-}
-
-.hint {
-  color: var(--muted);
-}
-
-.message {
-  padding: 8px;
-  border-radius: 6px;
-  background: #fee2e2;
-  color: #991b1b;
-}
-
 .confirm {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 8px;
-  border-radius: 6px;
-  background: #fef3c7;
-  font-size: 13px;
 }
 
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.actions button,
-.confirm button {
-  padding: 8px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--surface);
-}
-
-.primary {
-  border-color: var(--accent) !important;
-  background: var(--accent) !important;
-  color: #fff;
-}
-
-.danger {
-  border-color: #dc2626 !important;
-  color: #dc2626;
-}
-
-.confirm .danger {
-  background: #dc2626 !important;
-  color: #fff;
+.confirm > span {
+  flex: 1 1 100%;
 }
 </style>

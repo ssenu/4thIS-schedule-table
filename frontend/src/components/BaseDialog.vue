@@ -1,14 +1,19 @@
 <script setup lang="ts">
-defineProps<{ title: string }>()
+defineProps<{ title: string; wide?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 </script>
 
 <template>
-  <div class="overlay" @click.self="emit('close')">
-    <div class="dialog" role="dialog" aria-modal="true">
+  <div class="veil" @click.self="emit('close')">
+    <div class="panel" :class="{ wide }" role="dialog" aria-modal="true">
       <header>
         <h2>{{ title }}</h2>
-        <button type="button" class="x" aria-label="닫기" @click="emit('close')">
+        <button
+          type="button"
+          class="btn btn--quiet btn--sm"
+          aria-label="닫기"
+          @click="emit('close')"
+        >
           ✕
         </button>
       </header>
@@ -20,47 +25,48 @@ const emit = defineEmits<{ close: [] }>()
 </template>
 
 <style scoped>
-.overlay {
+.veil {
   position: fixed;
   inset: 0;
   z-index: 50;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
-  background: rgb(15 23 42 / 45%);
+  padding: 20px;
+  background: rgb(23 24 28 / 38%);
 }
 
-.dialog {
-  width: min(460px, 100%);
-  max-height: 90vh;
+.panel {
+  width: min(430px, 100%);
+  max-height: 88vh;
   overflow: auto;
-  background: var(--surface);
-  border-radius: 10px;
-  box-shadow: 0 12px 32px rgb(0 0 0 / 25%);
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+  box-shadow: 0 18px 44px rgb(23 24 28 / 18%);
+}
+
+.panel.wide {
+  width: min(560px, 100%);
 }
 
 header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line-soft);
+  gap: 12px;
+  padding: 13px 14px 13px 18px;
+  border-bottom: 1px solid var(--rule);
 }
 
 h2 {
   margin: 0;
-  font-size: 16px;
-}
-
-.x {
-  border: none;
-  background: none;
-  font-size: 16px;
-  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
 }
 
 .body {
-  padding: 16px;
+  padding: 18px;
 }
 </style>

@@ -4,6 +4,7 @@ import { ApiError, api } from '@/api/client'
 import { DAY_NAMES, PALETTE, SLOT_COUNT, TITLE_MAX_LEN } from '@/constants'
 import { useBoardStore } from '@/stores/board'
 import type { Schedule } from '@/types'
+import { textOn } from '@/utils/contrast'
 import { slotOptions } from '@/utils/timeSlot'
 import BaseDialog from './BaseDialog.vue'
 
@@ -46,7 +47,7 @@ const heading = computed(() => {
 })
 
 function fail(err: unknown) {
-  message.value = err instanceof ApiError ? err.message : '요청에 실패했습니다.'
+  message.value = err instanceof ApiError ? err.message : '요청이 실패했습니다.'
 }
 
 async function submit() {
@@ -56,31 +57,18 @@ async function submit() {
   message.value = ''
   busy.value = true
   const creds = store.credentialsFor(props.memberId)
+  const fields = {
+    day_of_week: day.value,
+    start_slot: start.value,
+    end_slot: end.value,
+    title: title.value.trim(),
+    color: color.value,
+  }
   try {
     if (props.schedule) {
-      await api.updateSchedule(
-        props.schedule.id,
-        {
-          day_of_week: day.value,
-          start_slot: start.value,
-          end_slot: end.value,
-          title: title.value.trim(),
-          color: color.value,
-        },
-        creds,
-      )
+      await api.updateSchedule(props.schedule.id, fields, creds)
     } else {
-      await api.createSchedule(
-        {
-          member_id: props.memberId,
-          day_of_week: day.value,
-          start_slot: start.value,
-          end_slot: end.value,
-          title: title.value.trim(),
-          color: color.value,
-        },
-        creds,
-      )
+      await api.createSchedule({ member_id: props.memberId, ...fields }, creds)
     }
     await store.fetchBoard()
     emit('close')
@@ -114,20 +102,20 @@ async function remove() {
 
 <template>
   <BaseDialog :title="heading" @close="emit('close')">
-    <form @submit.prevent="submit">
-      <label>
-        요일
-        <select v-model.number="day" :disabled="readonly">
+    <form class="stack" @submit.prevent="submit">
+      <label class="field">
+        <span>요일</span>
+        <select v-model.number="day" class="select" :disabled="readonly">
           <option v-for="(label, index) in DAY_NAMES" :key="label" :value="index">
             {{ label }}요일
           </option>
         </select>
       </label>
 
-      <div class="row">
-        <label>
-          시작
-          <select v-model.number="start" :disabled="readonly">
+      <div class="field-row">
+        <label class="field">
+          <span>시작</span>
+          <select v-model.number="start" class="select" :disabled="readonly">
             <option
               v-for="option in startOptions"
               :key="`s-${option.value}`"
@@ -137,9 +125,9 @@ async function remove() {
             </option>
           </select>
         </label>
-        <label>
-          종료
-          <select v-model.number="end" :disabled="readonly">
+        <label class="field">
+          <span>종료</span>
+          <select v-model.number="end" class="select" :disabled="readonly">
             <option
               v-for="option in endOptions"
               :key="`e-${option.value}`"
@@ -151,10 +139,11 @@ async function remove() {
         </label>
       </div>
 
-      <label>
-        제목
+      <label class="field">
+        <span>제목</span>
         <input
           v-model="title"
+          class="input"
           :maxlength="TITLE_MAX_LEN"
           :disabled="readonly"
           placeholder="전공수업, 알바 …"
@@ -162,44 +151,64 @@ async function remove() {
         />
       </label>
 
-      <div class="palette">
-        <button
-          v-for="swatch in PALETTE"
-          :key="swatch"
-          type="button"
-          class="swatch"
-          :class="{ on: color === swatch }"
-          :style="{ backgroundColor: swatch }"
-          :disabled="readonly"
-          :aria-label="`색상 ${swatch}`"
-          @click="color = swatch"
-        />
+      <div class="field">
+        <span>색</span>
+        <div class="swatches">
+          <button
+            v-for="option in PALETTE"
+            :key="option"
+            type="button"
+            class="swatch"
+            :class="{ on: color === option }"
+            :style="{ backgroundColor: option, color: textOn(option) }"
+            :disabled="readonly"
+            :aria-label="`색 ${option}`"
+            :aria-pressed="color === option"
+            @click="color = option"
+          />
+        </div>
       </div>
 
-      <p v-if="message" class="message">{{ message }}</p>
+      <p v-if="message" class="notice notice--alarm">{{ message }}</p>
 
-      <div v-if="confirmingDelete" class="confirm">
+      <p v-if="confirmingDelete" class="notice notice--warn confirm">
         <span>이 일정을 지웁니다.</span>
-        <button type="button" @click="confirmingDelete = false">아니오</button>
-        <button type="button" class="danger" :disabled="busy" @click="remove">
-          삭제합니다
+        <button
+          type="button"
+          class="btn btn--sm"
+          @click="confirmingDelete = false"
+        >
+          그만두기
         </button>
-      </div>
+        <button
+          type="button"
+          class="btn btn--sm btn--fill-danger"
+          :disabled="busy"
+          @click="remove"
+        >
+          지웁니다
+        </button>
+      </p>
 
-      <div class="actions">
+      <div class="row-end">
         <button
           v-if="schedule && !readonly && !confirmingDelete"
           type="button"
-          class="danger"
+          class="btn btn--danger"
           @click="confirmingDelete = true"
         >
           삭제
         </button>
         <span class="spacer" />
-        <button type="button" @click="emit('close')">
+        <button type="button" class="btn" @click="emit('close')">
           {{ readonly ? '닫기' : '취소' }}
         </button>
-        <button v-if="!readonly" type="submit" class="primary" :disabled="busy">
+        <button
+          v-if="!readonly"
+          type="submit"
+          class="btn btn--primary"
+          :disabled="busy"
+        >
           저장
         </button>
       </div>
@@ -208,62 +217,40 @@ async function remove() {
 </template>
 
 <style scoped>
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.row {
-  display: flex;
-  gap: 12px;
-}
-
-.row label {
-  flex: 1;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-input,
-select {
-  padding: 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  font-size: 14px;
-  color: var(--text);
-}
-
-.palette {
+.swatches {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
+/* 고른 색에만 체크가 드러난다. 테두리로 표시하면 밝은 색에서 잘 안 보인다. */
 .swatch {
-  width: 28px;
-  height: 28px;
-  border: 2px solid transparent;
-  border-radius: 6px;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.82;
+  transition: opacity 110ms ease, transform 110ms ease;
+}
+
+.swatch:hover {
+  opacity: 1;
 }
 
 .swatch.on {
-  border-color: var(--text);
+  opacity: 1;
+  transform: scale(1.06);
 }
 
-.message {
-  margin: 0;
-  padding: 8px;
-  border-radius: 6px;
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 13px;
+.swatch.on::after {
+  content: "✓";
+  font-weight: 700;
 }
 
 .confirm {
@@ -271,43 +258,9 @@ select {
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding: 8px;
-  border-radius: 6px;
-  background: #fef3c7;
-  font-size: 13px;
 }
 
-.actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.spacer {
-  flex: 1;
-}
-
-.actions button,
-.confirm button {
-  padding: 8px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--surface);
-}
-
-.primary {
-  border-color: var(--accent) !important;
-  background: var(--accent) !important;
-  color: #fff;
-}
-
-.danger {
-  border-color: #dc2626 !important;
-  color: #dc2626;
-}
-
-.confirm .danger {
-  background: #dc2626 !important;
-  color: #fff;
+.confirm > span {
+  flex: 1 1 100%;
 }
 </style>

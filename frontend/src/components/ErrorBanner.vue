@@ -7,7 +7,9 @@ const store = useBoardStore()
 <template>
   <div v-if="store.error" class="banner" role="alert">
     <span>{{ store.error }}</span>
-    <button type="button" @click="store.error = ''">닫기</button>
+    <button type="button" class="btn btn--sm" @click="store.error = ''">
+      닫기
+    </button>
   </div>
 </template>
 
@@ -17,20 +19,22 @@ const store = useBoardStore()
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 12px;
-  padding: 8px 12px;
-  border-radius: 6px;
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 13px;
+  margin-bottom: 14px;
+  padding: 9px 10px 9px 12px;
+  border-radius: 4px;
+  background: var(--alarm-wash);
+  color: var(--alarm);
+  font-size: 12.5px;
 }
 
-button {
-  border: 1px solid #991b1b;
-  border-radius: 5px;
-  background: none;
+.btn {
+  border-color: color-mix(in srgb, var(--alarm) 35%, transparent);
+  background: transparent;
   color: inherit;
-  padding: 2px 8px;
-  font-size: 12px;
+}
+
+.btn:hover {
+  border-color: var(--alarm);
+  background: transparent;
 }
 </style>

@@ -24,17 +24,13 @@ watch(
   { immediate: true, deep: true },
 )
 
-function fail(err: unknown) {
-  message.value = err instanceof ApiError ? err.message : '요청에 실패했습니다.'
-}
-
 async function run(work: () => Promise<void>) {
   message.value = ''
   busy.value = true
   try {
     await work()
   } catch (err) {
-    fail(err)
+    message.value = err instanceof ApiError ? err.message : '요청이 실패했습니다.'
   } finally {
     busy.value = false
     await store.fetchBoard()
@@ -80,15 +76,28 @@ async function commitOrder() {
 </script>
 
 <template>
-  <BaseDialog title="카테고리 관리" @close="emit('close')">
-    <p v-if="!store.isAdmin" class="hint">관리자 모드에서만 바꿀 수 있습니다.</p>
+  <BaseDialog title="카테고리" wide @close="emit('close')">
+    <p v-if="!store.isAdmin" class="notice notice--quiet">
+      관리자만 바꿀 수 있습니다.
+    </p>
 
     <template v-else>
-      <draggable v-model="list" item-key="id" class="rows" tag="ol" @end="commitOrder">
+      <p class="notice notice--quiet head">
+        끌어서 순서를 바꿉니다. 이름 칸을 고치면 바로 반영됩니다.
+      </p>
+
+      <draggable
+        v-model="list"
+        item-key="id"
+        tag="ol"
+        class="rows"
+        @end="commitOrder"
+      >
         <template #item="{ element }">
           <li>
             <span class="grip" aria-hidden="true">⠿</span>
             <input
+              class="input"
               :value="element.name"
               :maxlength="NAME_MAX_LEN"
               @change="rename(element, ($event.target as HTMLInputElement).value)"
@@ -96,10 +105,16 @@ async function commitOrder() {
             <span class="count">{{ store.membersOf(element.id).length }}명</span>
 
             <template v-if="pendingDelete === element.id">
-              <button type="button" @click="pendingDelete = null">아니오</button>
               <button
                 type="button"
-                class="danger"
+                class="btn btn--sm"
+                @click="pendingDelete = null"
+              >
+                그만두기
+              </button>
+              <button
+                type="button"
+                class="btn btn--sm btn--fill-danger"
                 :disabled="busy"
                 @click="remove(element)"
               >
@@ -109,7 +124,7 @@ async function commitOrder() {
             <button
               v-else
               type="button"
-              class="danger"
+              class="btn btn--sm btn--danger"
               @click="pendingDelete = element.id"
             >
               삭제
@@ -118,98 +133,58 @@ async function commitOrder() {
         </template>
       </draggable>
 
-      <form class="add" @submit.prevent="add">
+      <form class="row-end add" @submit.prevent="add">
         <input
           v-model="newName"
+          class="input"
           :maxlength="NAME_MAX_LEN"
           placeholder="새 카테고리 이름"
         />
-        <button type="submit" class="primary" :disabled="busy">추가</button>
+        <button type="submit" class="btn btn--primary" :disabled="busy">
+          추가
+        </button>
       </form>
 
-      <p v-if="message" class="message">{{ message }}</p>
+      <p v-if="message" class="notice notice--alarm">{{ message }}</p>
     </template>
   </BaseDialog>
 </template>
 
 <style scoped>
-.hint {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
+.head {
+  margin-bottom: 12px;
 }
 
 .rows {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  border-top: 1px solid var(--rule);
 }
 
 .rows li {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: var(--surface-alt);
-  font-size: 13px;
+  padding: 7px 2px;
+  border-bottom: 1px solid var(--rule);
 }
 
 .grip {
   cursor: grab;
-  color: var(--muted);
-}
-
-.rows input,
-.add input {
-  flex: 1;
-  padding: 6px 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
+  color: var(--rule-strong);
   font-size: 13px;
-  color: var(--text);
+  user-select: none;
 }
 
 .count {
   flex: 0 0 auto;
-  color: var(--muted);
+  font-size: 11.5px;
+  color: var(--mute);
+  font-variant-numeric: tabular-nums;
 }
 
 .add {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.rows button,
-.add button {
-  padding: 6px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--surface);
-  font-size: 12px;
-}
-
-.primary {
-  border-color: var(--accent) !important;
-  background: var(--accent) !important;
-  color: #fff;
-}
-
-.danger {
-  border-color: #dc2626 !important;
-  color: #dc2626;
-}
-
-.message {
-  margin: 12px 0 0;
-  padding: 8px;
-  border-radius: 6px;
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 13px;
+  margin-top: 16px;
 }
 </style>

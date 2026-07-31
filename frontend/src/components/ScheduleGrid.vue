@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { SLOT_COUNT } from '@/constants'
 import type { Member, Schedule } from '@/types'
+import { textOn } from '@/utils/contrast'
 import {
   buildBlocks,
   buildColumns,
@@ -21,12 +22,17 @@ const slots = computed(() => Array.from({ length: SLOT_COUNT }, (_, i) => i))
 
 const gridStyle = computed(() => ({
   gridTemplateColumns:
-    `var(--time-col) repeat(${totalColumns(props.members.length) - 1},` +
-    ' minmax(76px, 1fr))',
-  gridTemplateRows: `28px 26px repeat(${SLOT_COUNT}, var(--slot-height))`,
+    `var(--ruler-w) repeat(${totalColumns(props.members.length) - 1},` +
+    ' minmax(var(--col-min), 1fr))',
+  gridTemplateRows: `30px 24px repeat(${SLOT_COUNT}, var(--slot-h))`,
 }))
 
 const bodyRows = computed(() => `${rowForSlot(0)} / ${rowForSlot(SLOT_COUNT)}`)
+
+/** 정각 눈금에만 숫자를 새긴다. 슬롯 0은 06, 34는 23. */
+function hourMark(slot: number): string {
+  return String(6 + slot / 2).padStart(2, '0')
+}
 
 function tooltip(schedule: Schedule): string {
   const when = describeSchedule(
@@ -34,23 +40,27 @@ function tooltip(schedule: Schedule): string {
     schedule.start_slot,
     schedule.end_slot,
   )
-  return `${when} ${schedule.title}`
+  return `${when} · ${schedule.title}`
+}
+
+function span(schedule: Schedule): string {
+  return `${slotToTime(schedule.start_slot)}–${slotToTime(schedule.end_slot)}`
 }
 </script>
 
 <template>
   <p v-if="members.length === 0" class="empty">
-    위에서 이름을 선택하면 시간표가 나타납니다.
+    왼쪽에서 이름을 고르면 시간표가 나타납니다.
   </p>
 
-  <div v-else class="scroll">
+  <div v-else class="sheet">
     <div class="grid" :style="gridStyle">
       <div class="corner" />
 
       <div
         v-for="head in dayHeaders"
         :key="`day-${head.day}`"
-        class="day-head"
+        class="day"
         :style="{
           gridColumn: `${head.gridColumnStart} / span ${head.span}`,
           gridRow: 1,
@@ -62,27 +72,28 @@ function tooltip(schedule: Schedule): string {
       <div
         v-for="(column, index) in columns"
         :key="`name-${column.day}-${column.member.id}`"
-        class="name-head"
+        class="who"
         :class="{ 'day-start': index % members.length === 0 }"
         :style="{ gridColumn: column.gridColumn, gridRow: 2 }"
       >
         {{ column.member.name }}
       </div>
 
+      <!-- 시간은 칸이 아니라 축이다. 격자 대신 눈금으로 새긴다. -->
       <div
         v-for="slot in slots"
-        :key="`time-${slot}`"
-        class="time"
+        :key="`tick-${slot}`"
+        class="tick"
         :class="{ hour: slot % 2 === 0 }"
         :style="{ gridColumn: 1, gridRow: rowForSlot(slot) }"
       >
-        {{ slotToTime(slot) }}
+        <span v-if="slot % 2 === 0">{{ hourMark(slot) }}</span>
       </div>
 
       <div
         v-for="(column, index) in columns"
-        :key="`bg-${column.day}-${column.member.id}`"
-        class="column-bg"
+        :key="`lane-${column.day}-${column.member.id}`"
+        class="lane"
         :class="{ 'day-start': index % members.length === 0 }"
         :style="{ gridColumn: column.gridColumn, gridRow: bodyRows }"
       />
@@ -97,10 +108,17 @@ function tooltip(schedule: Schedule): string {
           gridColumn: block.gridColumn,
           gridRow: `${block.gridRowStart} / ${block.gridRowEnd}`,
           backgroundColor: block.schedule.color,
+          color: textOn(block.schedule.color),
         }"
         @click="emit('select', block.schedule)"
       >
-        <span class="block-title">{{ block.schedule.title }}</span>
+        <span class="title">{{ block.schedule.title }}</span>
+        <span
+          v-if="block.gridRowEnd - block.gridRowStart >= 3"
+          class="span"
+        >
+          {{ span(block.schedule) }}
+        </span>
       </button>
     </div>
   </div>
@@ -108,22 +126,25 @@ function tooltip(schedule: Schedule): string {
 
 <style scoped>
 .empty {
-  padding: 48px 0;
+  padding: 72px 0;
   text-align: center;
-  color: var(--muted);
+  color: var(--mute);
 }
 
-.scroll {
+.sheet {
   overflow: auto;
-  max-height: calc(100vh - 240px);
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  background: var(--surface);
+  max-height: calc(100vh - 118px);
+  background: var(--paper);
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
 }
 
+/*
+ * min-width: max-content 를 쓰면 가장 긴 일정 제목이 열 너비를 정해 버린다.
+ * 열은 --col-min 으로 고정하고, 제목은 그 안에서 줄바꿈시킨다.
+ */
 .grid {
   display: grid;
-  min-width: max-content;
 }
 
 .corner {
@@ -133,98 +154,138 @@ function tooltip(schedule: Schedule): string {
   z-index: 4;
   grid-column: 1;
   grid-row: 1 / 3;
-  background: var(--surface);
-  border-right: 1px solid var(--line-strong);
-  border-bottom: 1px solid var(--line-strong);
+  background: var(--paper);
+  border-bottom: 1px solid var(--ink);
 }
 
-.day-head,
-.name-head {
+.day,
+.who {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--surface);
-  font-size: 12px;
+  background: var(--paper);
   white-space: nowrap;
 }
 
-.day-head {
+.day {
   position: sticky;
   top: 0;
   z-index: 3;
+  font-size: 14px;
   font-weight: 700;
-  border-bottom: 1px solid var(--line-soft);
-  border-left: 2px solid var(--line-strong);
+  border-left: 1px solid var(--rule-strong);
 }
 
-.name-head {
+.who {
   position: sticky;
-  top: 28px;
+  top: 30px;
   z-index: 3;
-  color: var(--muted);
-  border-bottom: 1px solid var(--line-strong);
+  font-size: 11px;
+  color: var(--mute);
+  border-bottom: 1px solid var(--ink);
+  border-left: 1px solid rgb(23 24 28 / 6%);
 }
 
-.name-head.day-start,
-.column-bg.day-start {
-  border-left: 2px solid var(--line-strong);
+.who.day-start {
+  border-left: 1px solid var(--rule-strong);
 }
 
-.time {
+/* 눈금자: 정각은 긴 눈금과 숫자, 30분은 짧은 눈금. */
+.tick {
   position: sticky;
   left: 0;
   z-index: 2;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: 6px;
-  background: var(--surface);
-  border-right: 1px solid var(--line-strong);
-  font-size: 10px;
-  color: var(--muted);
+  padding-right: 19px;
+  background: var(--paper);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  color: var(--mute);
 }
 
-.time.hour {
-  color: var(--text);
+/* 눈금은 셀 위쪽 경계에 놓여 정각 가로줄과 같은 높이에서 만난다. */
+.tick::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  top: 0;
+  width: 7px;
+  border-top: 1px solid var(--rule-strong);
+}
+
+.tick.hour {
+  color: var(--ink);
   font-weight: 600;
 }
 
-/* 30분마다 옅은 선, 1시간마다 진한 선. 칸을 하나씩 만들지 않고 배경으로 그린다. */
-.column-bg {
-  border-right: 1px solid var(--line-soft);
-  background-image:
-    repeating-linear-gradient(
-      to bottom,
-      var(--line-strong) 0 1px,
-      transparent 1px calc(var(--slot-height) * 2)
-    ),
-    repeating-linear-gradient(
-      to bottom,
-      var(--line-soft) 0 1px,
-      transparent 1px var(--slot-height)
-    );
+.tick.hour::after {
+  width: 15px;
+  border-top-color: var(--ink);
 }
 
-/* 몇 칸을 차지하든 블록은 하나. 제목도 그 안에 한 번만 들어간다. */
+/* 가로줄은 정각에만. 30분 줄무늬는 눈금자에 넘겼다. */
+.lane {
+  border-left: 1px solid rgb(23 24 28 / 6%);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    var(--rule) 0 1px,
+    transparent 1px calc(var(--slot-h) * 2)
+  );
+}
+
+.lane.day-start {
+  border-left: 1px solid var(--rule-strong);
+}
+
+/*
+ * 몇 칸을 차지하든 블록은 하나. 제목은 그 안에 한 번만 들어가고,
+ * 시작 시각과 붙어 보이도록 위쪽에 정렬한다.
+ */
 .block {
   z-index: 1;
-  margin: 1px;
-  padding: 2px;
+  margin: 0 2px 1px 1px;
+  padding: 3px 6px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
   overflow: hidden;
   border: none;
-  border-radius: 4px;
-  color: #fff;
-  text-shadow: 0 1px 1px rgb(0 0 0 / 25%);
+  border-radius: 3px;
+  text-align: left;
+  transition: filter 120ms ease;
 }
 
-.block-title {
+.block:hover {
+  filter: brightness(1.07) saturate(1.05);
+}
+
+.title {
   font-size: 12px;
-  line-height: 1.25;
-  text-align: center;
-  overflow: hidden;
+  font-weight: 650;
+  line-height: 1.2;
   word-break: break-all;
+}
+
+/* 세 칸(1시간 30분) 이상이면 시각까지 들어갈 자리가 생긴다. */
+.span {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.8;
+}
+@media (max-width: 860px) {
+  /* 사이드바가 위로 올라오므로 격자에 화면 전부를 주지 않는다. */
+  .sheet {
+    max-height: 62vh;
+  }
+
+  /* 좁은 열에서는 시각이 두 줄로 접힌다. 제목만 남긴다. */
+  .span {
+    display: none;
+  }
 }
 </style>

@@ -1,16 +1,31 @@
+/*
+ * 색은 데이터에만 쓴다.
+ * UI 전체는 잉크와 종이의 무채색이고, 채도를 가진 것은 사용자가 고른
+ * 일정 블록뿐이다. 표를 볼 때 눈이 먼저 가야 하는 것은 일정이지 버튼이 아니다.
+ */
 :root {
-  --slot-height: 22px;
-  --time-col: 56px;
-  --surface: #ffffff;
-  --surface-alt: #f8fafc;
-  --line-soft: #e5e7eb;
-  --line-strong: #cbd5e1;
-  --text: #1f2937;
-  --muted: #6b7280;
-  --accent: #2563eb;
+  --ink: #17181c;
+  --ink-soft: #4a4b52;
+  --paper: #fcfbf9;
+  --wash: #e9e6e0;
+  --rule: #d9d5cc;
+  --rule-strong: #b4aea0;
+  --mute: #8b8779;
+  --alarm: #b3261e;
+  --alarm-wash: #fbeae8;
+  --warn-wash: #f6efd8;
 
-  font-family: system-ui, "Malgun Gothic", sans-serif;
-  color: var(--text);
+  --slot-h: 20px;
+  --ruler-w: 46px;
+  --col-min: 96px;
+
+  --sans: system-ui, -apple-system, "Segoe UI", "Malgun Gothic",
+    "Apple SD Gothic Neo", sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  font-family: var(--sans);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
 }
 
 * {
@@ -19,10 +34,168 @@
 
 body {
   margin: 0;
-  background: var(--surface-alt);
+  background: var(--wash);
+  font-size: 13px;
 }
 
-button {
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+/* ── 공통 컨트롤 ───────────────────────────────────────────────
+   다이얼로그 네 개가 같은 폼을 쓴다. 각자 복제하는 대신 여기서 한 번 정의한다. */
+
+.btn {
   font: inherit;
+  padding: 6px 11px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
   cursor: pointer;
+  transition: background 120ms ease, border-color 120ms ease;
+}
+
+.btn:hover {
+  background: #fff;
+  border-color: var(--ink-soft);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.btn--primary {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+
+.btn--primary:hover {
+  background: #000;
+  border-color: #000;
+}
+
+.btn--danger {
+  color: var(--alarm);
+  border-color: color-mix(in srgb, var(--alarm) 40%, var(--rule));
+}
+
+.btn--danger:hover {
+  background: var(--alarm-wash);
+  border-color: var(--alarm);
+}
+
+.btn--fill-danger {
+  background: var(--alarm);
+  border-color: var(--alarm);
+  color: #fff;
+}
+
+.btn--quiet {
+  border-color: transparent;
+  background: transparent;
+}
+
+.btn--quiet:hover {
+  background: rgb(23 24 28 / 6%);
+  border-color: transparent;
+}
+
+.btn--sm {
+  padding: 3px 8px;
+  font-size: 12px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.field > span {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.field-row {
+  display: flex;
+  gap: 12px;
+}
+
+.field-row > .field {
+  flex: 1;
+}
+
+.input,
+.select {
+  font: inherit;
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 4px;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.input:disabled,
+.select:disabled {
+  color: var(--mute);
+  background: var(--wash);
+}
+
+.notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.notice--alarm {
+  background: var(--alarm-wash);
+  color: var(--alarm);
+}
+
+.notice--warn {
+  background: var(--warn-wash);
+  color: var(--ink);
+}
+
+.notice--quiet {
+  padding: 0;
+  color: var(--mute);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.row-end {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.row-end > .spacer {
+  flex: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+@media (max-width: 860px) {
+  :root {
+    --col-min: 76px;
+  }
 }

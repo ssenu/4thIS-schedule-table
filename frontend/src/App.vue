@@ -21,7 +21,7 @@ const scheduleDialog = ref<{ memberId: number; schedule?: Schedule } | null>(nul
 const showMyList = ref(false)
 const showCategories = ref(false)
 
-/** 잠금 해제해 둔 이름들. 관리자와 무관하게 "내 정보" 버튼용이다. */
+/** 비밀번호를 넣어 둔 이름들. 상단 배지로 보여 준다. */
 const unlockedIds = computed(() => Object.keys(store.unlocked).map(Number))
 
 /** 입력 중인 내용이 날아가지 않도록 다이얼로그가 열려 있으면 갱신을 미룬다. */
@@ -40,6 +40,25 @@ function openBlock(schedule: Schedule) {
 
 function openNewSchedule(memberId: number) {
   scheduleDialog.value = { memberId }
+}
+
+/** 목록 위에 폼이 겹쳐 뜨지 않도록 목록을 접고 폼을 연다. */
+function addFromList(memberId: number) {
+  showMyList.value = false
+  openNewSchedule(memberId)
+}
+
+function editFromList(schedule: Schedule) {
+  showMyList.value = false
+  openBlock(schedule)
+}
+
+function toggleAdmin() {
+  if (store.isAdmin) {
+    store.lockAdmin()
+  } else {
+    unlockMode.value = 'admin'
+  }
 }
 
 const POLL_MS = 15_000
@@ -68,56 +87,84 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <main class="app">
-    <h1>동아리 주간 시간표</h1>
-
-    <div class="toolbar">
-      <button type="button" @click="showCategories = true">카테고리 관리</button>
-      <button type="button" @click="memberDialog = { mode: 'create' }">
-        이름 등록
-      </button>
-      <button
-        v-for="id in unlockedIds"
-        :key="`info-${id}`"
-        type="button"
-        @click="memberDialog = { mode: 'edit', memberId: id }"
-      >
-        {{ store.memberById(id)?.name }} 정보
-      </button>
-      <button type="button" @click="showMyList = true">내 일정</button>
+  <div class="shell">
+    <header class="bar">
+      <h1>동아리 주간 시간표</h1>
+      <span class="sub">매주 반복되는 일정만</span>
 
       <span class="spacer" />
 
-      <button type="button" @click="unlockMode = 'member'">
-        내 이름 잠금 해제
+      <button
+        type="button"
+        class="btn"
+        @click="memberDialog = { mode: 'create' }"
+      >
+        이름 등록
       </button>
-      <button type="button" @click="unlockMode = 'admin'">
-        {{ store.isAdmin ? '관리자 모드 켜짐' : '관리자 모드' }}
+      <button type="button" class="btn" @click="showMyList = true">
+        내 일정
+      </button>
+
+      <span class="divider" />
+
+      <button
+        v-for="id in unlockedIds"
+        :key="`badge-${id}`"
+        type="button"
+        class="badge"
+        :title="`${store.memberById(id)?.name} 이름과 비밀번호 수정`"
+        @click="memberDialog = { mode: 'edit', memberId: id }"
+      >
+        {{ store.memberById(id)?.name }}
       </button>
       <button
-        v-if="store.isAdmin || unlockedIds.length > 0"
+        v-if="unlockedIds.length === 0"
         type="button"
+        class="btn"
+        @click="unlockMode = 'member'"
+      >
+        내 이름 확인
+      </button>
+      <button
+        v-else
+        type="button"
+        class="btn btn--quiet btn--sm"
         @click="store.lockAll()"
       >
         잠그기
       </button>
-    </div>
 
-    <div class="toolbar">
-      <button type="button" @click="store.selectAll()">전체 보기</button>
-      <button type="button" @click="store.clearSelection()">선택 해제</button>
-      <span v-if="store.loading" class="muted">불러오는 중…</span>
-    </div>
+      <button
+        v-if="store.isAdmin"
+        type="button"
+        class="btn"
+        @click="showCategories = true"
+      >
+        카테고리
+      </button>
+      <button
+        type="button"
+        class="btn"
+        :class="{ 'btn--primary': store.isAdmin }"
+        @click="toggleAdmin"
+      >
+        관리자
+      </button>
+    </header>
 
     <ErrorBanner />
 
-    <MemberPanel />
+    <div class="body">
+      <MemberPanel />
 
-    <ScheduleGrid
-      :members="store.selectedMembers"
-      :schedules="store.visibleSchedules"
-      @select="openBlock"
-    />
+      <div class="main">
+        <ScheduleGrid
+          :members="store.selectedMembers"
+          :schedules="store.visibleSchedules"
+          @select="openBlock"
+        />
+      </div>
+    </div>
 
     <CategoryEditor v-if="showCategories" @close="showCategories = false" />
 
@@ -137,8 +184,8 @@ onUnmounted(() => {
     <MyScheduleList
       v-if="showMyList"
       @close="showMyList = false"
-      @create="openNewSchedule"
-      @edit="openBlock"
+      @create="addFromList"
+      @edit="editFromList"
     />
 
     <ScheduleDialog
@@ -147,43 +194,87 @@ onUnmounted(() => {
       :schedule="scheduleDialog.schedule"
       @close="scheduleDialog = null"
     />
-  </main>
+  </div>
 </template>
 
 <style scoped>
-.app {
-  max-width: 1400px;
+.shell {
+  max-width: 1560px;
   margin: 0 auto;
-  padding: 16px;
+  padding: 14px 20px 24px;
+}
+
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
 }
 
 h1 {
-  font-size: 20px;
-  margin: 0 0 12px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-.toolbar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.toolbar button {
-  padding: 6px 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--surface);
-  font-size: 13px;
+.sub {
+  font-size: 11.5px;
+  color: var(--mute);
 }
 
 .spacer {
   flex: 1;
 }
 
-.muted {
-  color: var(--muted);
-  font-size: 13px;
+.divider {
+  width: 1px;
+  height: 20px;
+  background: var(--rule-strong);
+  margin: 0 4px;
+}
+
+.badge {
+  font: inherit;
+  font-weight: 650;
+  padding: 5px 12px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  cursor: pointer;
+}
+
+.badge:hover {
+  background: #000;
+}
+
+.body {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+@media (max-width: 860px) {
+  .shell {
+    padding: 12px 12px 20px;
+  }
+
+  .body {
+    flex-direction: column;
+    gap: 14px;
+  }
+
+  .spacer {
+    flex: 0 0 100%;
+  }
 }
 </style>

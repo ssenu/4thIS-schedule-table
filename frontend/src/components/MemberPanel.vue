@@ -56,116 +56,190 @@ async function commitAll() {
 </script>
 
 <template>
-  <section class="panel">
-    <p v-if="store.isAdmin" class="notice">
-      관리자 모드입니다. 이름을 끌어 순서와 소속을 바꿀 수 있습니다.
-    </p>
-
-    <div
-      v-for="category in store.sortedCategories"
-      :key="category.id"
-      class="group"
-    >
-      <h3>{{ category.name }}</h3>
-
-      <draggable
-        v-model="groups[category.id]"
-        class="chips"
-        group="members"
-        item-key="id"
-        :disabled="!store.isAdmin"
-        @end="commitAll"
+  <aside class="side">
+    <div class="scroll">
+      <section
+        v-for="category in store.sortedCategories"
+        :key="category.id"
+        class="group"
       >
-        <template #item="{ element }">
-          <button
-            type="button"
-            class="chip"
-            :class="{
-              on: store.selectedIds.includes(element.id),
-              mine: store.canEdit(element.id),
-              draggable: store.isAdmin,
-            }"
-            @click="store.toggleSelection(element.id)"
-          >
-            {{ store.selectedIds.includes(element.id) ? '☑' : '☐' }}
-            {{ element.name }}
-          </button>
-        </template>
-        <template #footer>
-          <span v-if="(groups[category.id] ?? []).length === 0" class="empty">
-            아직 등록된 이름이 없습니다
-          </span>
-        </template>
-      </draggable>
+        <h2>{{ category.name }}</h2>
+
+        <draggable
+          v-model="groups[category.id]"
+          class="names"
+          group="members"
+          item-key="id"
+          :disabled="!store.isAdmin"
+          @end="commitAll"
+        >
+          <template #item="{ element }">
+            <button
+              type="button"
+              class="name"
+              :class="{
+                on: store.selectedIds.includes(element.id),
+                mine: store.canEdit(element.id),
+                grab: store.isAdmin,
+              }"
+              @click="store.toggleSelection(element.id)"
+            >
+              {{ element.name }}
+            </button>
+          </template>
+          <template #footer>
+            <p v-if="(groups[category.id] ?? []).length === 0" class="none">
+              아직 없음
+            </p>
+          </template>
+        </draggable>
+      </section>
     </div>
-  </section>
+
+    <div class="foot">
+      <button type="button" class="btn btn--sm" @click="store.selectAll()">
+        전체
+      </button>
+      <button type="button" class="btn btn--sm" @click="store.clearSelection()">
+        해제
+      </button>
+      <span class="count">{{ store.selectedIds.length }}명 보는 중</span>
+    </div>
+
+    <p v-if="store.isAdmin" class="admin-hint">
+      끌어서 순서와 소속을 바꿉니다
+    </p>
+  </aside>
 </template>
 
 <style scoped>
-.panel {
+.side {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  margin-bottom: 12px;
-  background: var(--surface);
-  border: 1px solid var(--line-soft);
-  border-radius: 8px;
+  width: 168px;
+  flex: 0 0 168px;
+  border-right: 1px solid var(--rule);
 }
 
-.notice {
-  margin: 0;
-  font-size: 12px;
-  color: var(--accent);
-}
-
-.group {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-h3 {
-  flex: 0 0 72px;
-  margin: 0;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
+.scroll {
   flex: 1;
-  min-height: 30px;
+  overflow-y: auto;
+  padding: 2px 12px 8px 0;
 }
 
-.chip {
-  padding: 4px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: var(--surface);
-  font-size: 13px;
+.group + .group {
+  margin-top: 18px;
 }
 
-.chip.on {
-  border-color: var(--accent);
-  background: #eff6ff;
-  color: var(--accent);
+h2 {
+  margin: 0 0 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
 }
 
-/* 내가 편집할 수 있는 이름은 밑줄로 구분한다. */
-.chip.mine {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.names {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-height: 22px;
 }
 
-.chip.draggable {
+/*
+ * 두 가지를 한 줄로 말한다.
+ * 네모가 차 있으면 표에 보이는 사람, 글씨가 굵으면 내가 고칠 수 있는 사람.
+ */
+.name {
+  font: inherit;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 4px 6px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--mute);
+  text-align: left;
+  cursor: pointer;
+  transition: background 110ms ease, color 110ms ease;
+}
+
+.name::before {
+  content: "";
+  flex: 0 0 auto;
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--rule-strong);
+  border-radius: 2px;
+}
+
+.name:hover {
+  background: rgb(23 24 28 / 5%);
+}
+
+.name.on {
+  color: var(--ink);
+}
+
+.name.on::before {
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.name.mine {
+  font-weight: 650;
+}
+
+.name.grab {
   cursor: grab;
 }
 
-.empty {
-  font-size: 13px;
-  color: var(--muted);
+.none {
+  margin: 0;
+  padding: 4px 6px;
+  font-size: 12px;
+  color: var(--rule-strong);
+}
+
+.foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px 0 0;
+  border-top: 1px solid var(--rule);
+}
+
+.count {
+  font-size: 11px;
+  color: var(--mute);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-hint {
+  margin: 8px 0 0;
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--mute);
+}
+@media (max-width: 860px) {
+  .side {
+    width: 100%;
+    flex: none;
+    padding-bottom: 12px;
+    border-right: none;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .scroll {
+    max-height: 208px;
+    padding-right: 0;
+  }
+
+  .foot {
+    padding-right: 0;
+  }
 }
 </style>

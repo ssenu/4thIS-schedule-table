@@ -20,14 +20,14 @@ async function submit() {
     if (props.mode === 'admin') {
       await store.unlockAdmin(password.value)
     } else if (memberId.value === null) {
-      message.value = '이름을 선택해 주세요.'
+      message.value = '이름을 골라 주세요.'
       return
     } else {
       await store.unlockMember(memberId.value, password.value)
     }
     emit('close')
   } catch (err) {
-    message.value = err instanceof ApiError ? err.message : '확인에 실패했습니다.'
+    message.value = err instanceof ApiError ? err.message : '확인하지 못했습니다.'
   } finally {
     busy.value = false
   }
@@ -36,14 +36,22 @@ async function submit() {
 
 <template>
   <BaseDialog
-    :title="mode === 'admin' ? '관리자 모드' : '내 이름 잠금 해제'"
+    :title="mode === 'admin' ? '관리자 확인' : '내 이름 확인'"
     @close="emit('close')"
   >
-    <form @submit.prevent="submit">
-      <label v-if="mode === 'member'">
-        이름
-        <select v-model.number="memberId">
-          <option :value="null" disabled>선택하세요</option>
+    <form class="stack" @submit.prevent="submit">
+      <p class="notice notice--quiet">
+        {{
+          mode === 'admin'
+            ? '관리자 비밀번호를 넣으면 모든 일정과 카테고리를 고칠 수 있습니다.'
+            : '비밀번호를 넣으면 그 이름의 일정을 고칠 수 있습니다.'
+        }}
+      </p>
+
+      <label v-if="mode === 'member'" class="field">
+        <span>이름</span>
+        <select v-model.number="memberId" class="select">
+          <option :value="null" disabled>고르세요</option>
           <option
             v-for="member in store.orderedMembers"
             :key="member.id"
@@ -54,10 +62,11 @@ async function submit() {
         </select>
       </label>
 
-      <label>
-        비밀번호
+      <label class="field">
+        <span>비밀번호</span>
         <input
           v-model="password"
+          class="input"
           :type="mode === 'admin' ? 'password' : 'text'"
           :inputmode="mode === 'admin' ? undefined : 'numeric'"
           :maxlength="mode === 'admin' ? undefined : 4"
@@ -66,65 +75,15 @@ async function submit() {
         />
       </label>
 
-      <p v-if="message" class="message">{{ message }}</p>
+      <p v-if="message" class="notice notice--alarm">{{ message }}</p>
 
-      <div class="actions">
-        <button type="button" @click="emit('close')">취소</button>
-        <button type="submit" class="primary" :disabled="busy">확인</button>
+      <div class="row-end">
+        <span class="spacer" />
+        <button type="button" class="btn" @click="emit('close')">취소</button>
+        <button type="submit" class="btn btn--primary" :disabled="busy">
+          확인
+        </button>
       </div>
     </form>
   </BaseDialog>
 </template>
-
-<style scoped>
-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-label {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  font-size: 13px;
-  color: var(--muted);
-}
-
-input,
-select {
-  padding: 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  font-size: 14px;
-  color: var(--text);
-}
-
-.message {
-  margin: 0;
-  padding: 8px;
-  border-radius: 6px;
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 13px;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.actions button {
-  padding: 8px 14px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--surface);
-}
-
-.actions .primary {
-  border-color: var(--accent);
-  background: var(--accent);
-  color: #fff;
-}
-</style>

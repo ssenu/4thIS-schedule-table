@@ -174,6 +174,11 @@ export const useBoardStore = defineStore('board', {
       this.persist()
     },
 
+    lockAdmin() {
+      this.adminPassword = ''
+      this.persist()
+    },
+
     lockAll() {
       this.unlocked = {}
       this.adminPassword = ''

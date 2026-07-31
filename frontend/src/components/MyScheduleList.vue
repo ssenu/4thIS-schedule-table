@@ -15,7 +15,7 @@ const emit = defineEmits<{
 
 const store = useBoardStore()
 
-/** 관리자는 모두, 일반 사용자는 잠금 해제한 본인만 고를 수 있다. */
+/** 관리자는 모두, 그 밖에는 비밀번호를 넣어 둔 본인만 고를 수 있다. */
 const editableIds = computed(() =>
   store.isAdmin
     ? store.orderedMembers.map((member) => member.id)
@@ -42,7 +42,7 @@ async function remove(schedule: Schedule) {
     await store.fetchBoard()
     pendingDelete.value = null
   } catch (err) {
-    message.value = err instanceof ApiError ? err.message : '삭제하지 못했습니다.'
+    message.value = err instanceof ApiError ? err.message : '지우지 못했습니다.'
   } finally {
     busy.value = false
   }
@@ -50,36 +50,44 @@ async function remove(schedule: Schedule) {
 </script>
 
 <template>
-  <BaseDialog title="내 일정" @close="emit('close')">
-    <p v-if="editableIds.length === 0" class="hint">
-      먼저 이름을 잠금 해제해 주세요.
+  <BaseDialog title="내 일정" wide @close="emit('close')">
+    <p v-if="editableIds.length === 0" class="notice notice--quiet">
+      먼저 상단에서 내 이름을 확인해 주세요.
     </p>
 
     <template v-else>
-      <label v-if="editableIds.length > 1" class="picker">
-        대상
-        <select v-model.number="targetId">
+      <label v-if="editableIds.length > 1" class="field picker">
+        <span>대상</span>
+        <select v-model.number="targetId" class="select">
           <option v-for="id in editableIds" :key="id" :value="id">
             {{ store.memberById(id)?.name }}
           </option>
         </select>
       </label>
 
-      <p v-if="rows.length === 0" class="hint">아직 등록된 일정이 없습니다.</p>
+      <p v-if="rows.length === 0" class="notice notice--quiet">
+        아직 넣은 일정이 없습니다.
+      </p>
 
       <ol v-else class="rows">
         <li v-for="row in rows" :key="row.id">
           <span class="day">{{ DAY_NAMES[row.day_of_week] }}</span>
-          <span class="time">
-            {{ slotToTime(row.start_slot) }} ~ {{ slotToTime(row.end_slot) }}
+          <span class="clock">
+            {{ slotToTime(row.start_slot) }}–{{ slotToTime(row.end_slot) }}
           </span>
-          <span class="title">{{ row.title }}</span>
+          <span class="what">{{ row.title }}</span>
 
           <template v-if="pendingDelete === row.id">
-            <button type="button" @click="pendingDelete = null">아니오</button>
             <button
               type="button"
-              class="danger"
+              class="btn btn--sm"
+              @click="pendingDelete = null"
+            >
+              그만두기
+            </button>
+            <button
+              type="button"
+              class="btn btn--sm btn--fill-danger"
               :disabled="busy"
               @click="remove(row)"
             >
@@ -87,24 +95,31 @@ async function remove(schedule: Schedule) {
             </button>
           </template>
           <template v-else>
-            <button type="button" @click="emit('edit', row)">수정</button>
-            <button type="button" class="danger" @click="pendingDelete = row.id">
+            <button type="button" class="btn btn--sm" @click="emit('edit', row)">
+              수정
+            </button>
+            <button
+              type="button"
+              class="btn btn--sm btn--danger"
+              @click="pendingDelete = row.id"
+            >
               삭제
             </button>
           </template>
         </li>
       </ol>
 
-      <p v-if="message" class="message">{{ message }}</p>
+      <p v-if="message" class="notice notice--alarm">{{ message }}</p>
 
-      <div class="actions">
+      <div class="row-end foot">
+        <span class="spacer" />
         <button
           v-if="targetId !== null"
           type="button"
-          class="primary"
+          class="btn btn--primary"
           @click="emit('create', targetId)"
         >
-          + 일정 추가
+          일정 추가
         </button>
       </div>
     </template>
@@ -113,97 +128,58 @@ async function remove(schedule: Schedule) {
 
 <style scoped>
 .picker {
-  display: flex;
+  flex-direction: row;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  font-size: 13px;
-  color: var(--muted);
+  gap: 10px;
+  margin-bottom: 14px;
 }
 
-.picker select {
-  padding: 6px 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  color: var(--text);
+.picker > span {
+  flex: 0 0 auto;
 }
 
-.hint {
-  margin: 8px 0;
-  color: var(--muted);
-  font-size: 13px;
+.picker .select {
+  width: auto;
 }
 
+/* 한 줄이 곧 "무슨 요일 몇 시부터 몇 시까지 무슨 일정"이라는 문장이다. */
 .rows {
   margin: 0;
   padding: 0;
   list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  border-top: 1px solid var(--rule);
 }
 
 .rows li {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px;
-  border-radius: 6px;
-  background: var(--surface-alt);
-  font-size: 13px;
+  gap: 10px;
+  padding: 8px 2px;
+  border-bottom: 1px solid var(--rule);
 }
 
 .day {
-  flex: 0 0 20px;
+  flex: 0 0 16px;
   font-weight: 700;
 }
 
-.time {
-  flex: 0 0 120px;
-  color: var(--muted);
+.clock {
+  flex: 0 0 96px;
+  font-family: var(--mono);
+  font-size: 11.5px;
   font-variant-numeric: tabular-nums;
+  color: var(--mute);
 }
 
-.title {
+.what {
   flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.rows button {
-  padding: 4px 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 5px;
-  background: var(--surface);
-  font-size: 12px;
-}
-
-.danger {
-  border-color: #dc2626 !important;
-  color: #dc2626;
-}
-
-.message {
-  margin: 8px 0 0;
-  padding: 8px;
-  border-radius: 6px;
-  background: #fee2e2;
-  color: #991b1b;
-  font-size: 13px;
-}
-
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 12px;
-}
-
-.primary {
-  padding: 8px 14px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  background: var(--accent);
-  color: #fff;
+.foot {
+  margin-top: 16px;
 }
 </style>
