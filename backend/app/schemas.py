@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field
 
-from app.constants import NAME_MAX_LEN
+from app.constants import MEMBER_PASSWORD_PATTERN, NAME_MAX_LEN
 
 
 class CategoryOut(BaseModel):
@@ -42,4 +42,20 @@ class CategoryUpdate(BaseModel):
 
 
 class OrderIn(BaseModel):
+    ordered_ids: list[int]
+
+class MemberCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=NAME_MAX_LEN)
+    category_id: int
+    password: str = Field(pattern=MEMBER_PASSWORD_PATTERN)
+
+
+class MemberUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=NAME_MAX_LEN)
+    password: str | None = Field(default=None, pattern=MEMBER_PASSWORD_PATTERN)
+    category_id: int | None = None
+
+
+class MemberOrderIn(BaseModel):
+    category_id: int
     ordered_ids: list[int]
