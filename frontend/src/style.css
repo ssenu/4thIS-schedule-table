@@ -1,0 +1,28 @@
+:root {
+  --slot-height: 22px;
+  --time-col: 56px;
+  --surface: #ffffff;
+  --surface-alt: #f8fafc;
+  --line-soft: #e5e7eb;
+  --line-strong: #cbd5e1;
+  --text: #1f2937;
+  --muted: #6b7280;
+  --accent: #2563eb;
+
+  font-family: system-ui, "Malgun Gothic", sans-serif;
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--surface-alt);
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}

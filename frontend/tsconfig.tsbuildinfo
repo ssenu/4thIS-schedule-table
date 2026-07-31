@@ -1,0 +1,1 @@
+{"root":["./src/constants.ts","./src/main.ts","./src/types.ts","./src/api/client.ts","./src/stores/board.ts","./src/utils/gridlayout.ts","./src/utils/timeslot.ts","./src/app.vue","./src/components/schedulegrid.vue","./tests/board.spec.ts","./tests/client.spec.ts","./tests/gridlayout.spec.ts","./tests/timeslot.spec.ts"],"version":"5.9.3"}
