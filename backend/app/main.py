@@ -9,6 +9,7 @@ from app.auth import AttemptLimiter, hash_password
 from app.config import load_settings
 from app.db import connect, initialize
 from app.errors import DomainError, TooManyAttempts
+from app.routers import auth as auth_router
 from app.routers import board
 
 
@@ -29,6 +30,7 @@ def create_app(conn: sqlite3.Connection, limiter: AttemptLimiter) -> FastAPI:
         )
 
     app.include_router(board.router)
+    app.include_router(auth_router.router)
     return app
 
 
