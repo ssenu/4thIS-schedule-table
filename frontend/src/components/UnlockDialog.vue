@@ -1,17 +1,24 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ApiError } from '@/api/client'
 import { useBoardStore } from '@/stores/board'
 import BaseDialog from './BaseDialog.vue'
 
-const props = defineProps<{ mode: 'member' | 'admin' }>()
-const emit = defineEmits<{ close: [] }>()
+const props = defineProps<{
+  mode: 'member' | 'admin'
+  /** 확인할 이름. 수정 버튼이 고른 사람이라 고를 필요가 없다. */
+  memberId?: number
+}>()
+const emit = defineEmits<{ close: []; unlocked: [memberId: number] }>()
 
 const store = useBoardStore()
-const memberId = ref<number | null>(store.activeMemberId)
 const password = ref('')
 const message = ref('')
 const busy = ref(false)
+
+const target = computed(() =>
+  props.memberId === undefined ? null : store.memberById(props.memberId),
+)
 
 async function submit() {
   message.value = ''
@@ -19,11 +26,12 @@ async function submit() {
   try {
     if (props.mode === 'admin') {
       await store.unlockAdmin(password.value)
-    } else if (memberId.value === null) {
-      message.value = '이름을 골라 주세요.'
+    } else if (props.memberId === undefined) {
+      message.value = '이름이 지정되지 않았습니다.'
       return
     } else {
-      await store.unlockMember(memberId.value, password.value)
+      await store.unlockMember(props.memberId, password.value)
+      emit('unlocked', props.memberId)
     }
     emit('close')
   } catch (err) {
@@ -36,7 +44,7 @@ async function submit() {
 
 <template>
   <BaseDialog
-    :title="mode === 'admin' ? '관리자 확인' : '내 이름 확인'"
+    :title="mode === 'admin' ? '관리자 확인' : `${target?.name ?? ''} 확인`"
     @close="emit('close')"
   >
     <form class="stack" @submit.prevent="submit">
@@ -44,23 +52,9 @@ async function submit() {
         {{
           mode === 'admin'
             ? '관리자 비밀번호를 넣으면 모든 일정과 카테고리를 고칠 수 있습니다.'
-            : '비밀번호를 넣으면 그 이름의 일정을 고칠 수 있습니다.'
+            : '등록할 때 정한 숫자 4자리를 넣으면 이 이름의 시간표를 고칠 수 있습니다.'
         }}
       </p>
-
-      <label v-if="mode === 'member'" class="field">
-        <span>이름</span>
-        <select v-model.number="memberId" class="select">
-          <option :value="null" disabled>고르세요</option>
-          <option
-            v-for="member in store.orderedMembers"
-            :key="member.id"
-            :value="member.id"
-          >
-            {{ member.name }}
-          </option>
-        </select>
-      </label>
 
       <label class="field">
         <span>비밀번호</span>
@@ -72,6 +66,7 @@ async function submit() {
           :maxlength="mode === 'admin' ? undefined : 4"
           :placeholder="mode === 'admin' ? '관리자 비밀번호' : '숫자 4자리'"
           autocomplete="off"
+          autofocus
         />
       </label>
 

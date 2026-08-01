@@ -8,15 +8,20 @@ import { textOn } from '@/utils/contrast'
 import { slotOptions } from '@/utils/timeSlot'
 import BaseDialog from './BaseDialog.vue'
 
-const props = defineProps<{ memberId: number; schedule?: Schedule }>()
+const props = defineProps<{
+  memberId: number
+  schedule?: Schedule
+  /** 격자를 끌어서 만든 자리. 요일과 시간이 미리 채워진다. */
+  preset?: { day: number; start: number; end: number }
+}>()
 const emit = defineEmits<{ close: [] }>()
 
 const store = useBoardStore()
 const readonly = computed(() => !store.canEdit(props.memberId))
 
-const day = ref(props.schedule?.day_of_week ?? 0)
-const start = ref(props.schedule?.start_slot ?? 6)
-const end = ref(props.schedule?.end_slot ?? 8)
+const day = ref(props.schedule?.day_of_week ?? props.preset?.day ?? 0)
+const start = ref(props.schedule?.start_slot ?? props.preset?.start ?? 6)
+const end = ref(props.schedule?.end_slot ?? props.preset?.end ?? 8)
 const title = ref(props.schedule?.title ?? '')
 const color = ref<string>(props.schedule?.color ?? PALETTE[0])
 

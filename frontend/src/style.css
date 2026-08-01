@@ -109,6 +109,16 @@ body {
   font-size: 12px;
 }
 
+.btn--icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn--icon svg {
+  flex: 0 0 auto;
+}
+
 .field {
   display: flex;
   flex-direction: column;

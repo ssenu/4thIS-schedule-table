@@ -4,6 +4,7 @@ import { MIN_COLUMN_WIDTH, RULER_WIDTH, SLOT_COUNT } from '@/constants'
 import type { Member, Schedule } from '@/types'
 import { textOn } from '@/utils/contrast'
 import { daysPerPage, pageLabel, splitIntoPages } from '@/utils/dayPages'
+import type { GridColumn } from '@/utils/gridLayout'
 import {
   buildBlocks,
   buildColumns,
@@ -18,8 +19,17 @@ const props = defineProps<{
   schedules: Schedule[]
   /** 다이얼로그가 열려 있을 때 방향키를 가로채지 않는다. */
   paused?: boolean
+  /** 수정 중인 사람. 이 사람 열에서는 끌어서 일정을 만든다. */
+  editingMemberId?: number | null
 }>()
-const emit = defineEmits<{ select: [schedule: Schedule] }>()
+const emit = defineEmits<{
+  select: [schedule: Schedule]
+  draft: [value: { memberId: number; day: number; start: number; end: number }]
+}>()
+
+const editing = computed(
+  () => props.editingMemberId !== null && props.editingMemberId !== undefined,
+)
 
 const frame = ref<HTMLElement>()
 const width = ref(0)
@@ -53,6 +63,15 @@ function go(step: number) {
   }
 }
 
+/** 포인터를 요소에 묶어 밖으로 나가도 따라오게 한다. 실패해도 진행에 지장은 없다. */
+function capture(event: PointerEvent) {
+  try {
+    ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  } catch {
+    // 활성 포인터가 아니면 무시한다.
+  }
+}
+
 /* ── 잡아끌어 넘기기 ─────────────────────────────────────────── */
 
 /** 이만큼 끌면 페이지가 넘어간다. */
@@ -67,13 +86,14 @@ let activePointer: number | null = null
 let suppressClick = false
 
 function onPointerDown(event: PointerEvent) {
-  if (pages.value.length < 2 || event.button !== 0) {
+  // 수정 중에는 끄는 동작이 일정 만들기다. 페이지는 화살표와 방향키로 넘긴다.
+  if (editing.value || pages.value.length < 2 || event.button !== 0) {
     return
   }
   activePointer = event.pointerId
   startX = event.clientX
   dragging.value = true
-  ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
+  capture(event)
 }
 
 function onPointerMove(event: PointerEvent) {
@@ -145,6 +165,83 @@ onMounted(() => {
 onUnmounted(() => {
   window.removeEventListener('keydown', onKey)
   observer?.disconnect()
+})
+
+/* ── 수정 중: 끌어서 일정 만들기 ─────────────────────────────── */
+
+interface Draft {
+  memberId: number
+  day: number
+  gridColumn: number
+  from: number
+  to: number
+}
+
+const draft = ref<Draft | null>(null)
+let draftPointer: number | null = null
+
+/** 열 안에서의 세로 위치를 슬롯 번호로. 줄 높이가 화면마다 달라 비율로 잰다. */
+function slotAt(element: HTMLElement, clientY: number): number {
+  const rect = element.getBoundingClientRect()
+  const ratio = (clientY - rect.top) / rect.height
+  return Math.max(0, Math.min(SLOT_COUNT - 1, Math.floor(ratio * SLOT_COUNT)))
+}
+
+/** 수정 중인 본인 열에서만 새 일정을 그릴 수 있다. */
+function canDraw(column: GridColumn): boolean {
+  return editing.value && column.member.id === props.editingMemberId
+}
+
+function onLaneDown(event: PointerEvent, column: GridColumn) {
+  if (!canDraw(column) || event.button !== 0) {
+    return
+  }
+  const element = event.currentTarget as HTMLElement
+  const slot = slotAt(element, event.clientY)
+  draft.value = {
+    memberId: column.member.id,
+    day: column.day,
+    gridColumn: column.gridColumn,
+    from: slot,
+    to: slot,
+  }
+  draftPointer = event.pointerId
+  capture(event)
+  event.preventDefault()
+}
+
+function onLaneMove(event: PointerEvent) {
+  if (draftPointer !== event.pointerId || draft.value === null) {
+    return
+  }
+  draft.value.to = slotAt(event.currentTarget as HTMLElement, event.clientY)
+}
+
+function onLaneUp(event: PointerEvent) {
+  if (draftPointer !== event.pointerId || draft.value === null) {
+    return
+  }
+  const { memberId, day, from, to } = draft.value
+  emit('draft', {
+    memberId,
+    day,
+    start: Math.min(from, to),
+    end: Math.max(from, to) + 1,
+  })
+  draft.value = null
+  draftPointer = null
+}
+
+/** 어느 쪽으로 끌었든 위에서 아래로 정리한 구간. */
+const draftRange = computed(() => {
+  if (draft.value === null) {
+    return null
+  }
+  return {
+    gridColumn: draft.value.gridColumn,
+    start: Math.min(draft.value.from, draft.value.to),
+    end: Math.max(draft.value.from, draft.value.to) + 1,
+  }
 })
 
 /* ── 그리기 ──────────────────────────────────────────────────── */
@@ -234,7 +331,10 @@ function span(schedule: Schedule): string {
             v-for="(column, index) in columns"
             :key="`name-${column.day}-${column.member.id}`"
             class="who"
-            :class="{ 'day-start': index % members.length === 0 }"
+            :class="{
+              'day-start': index % members.length === 0,
+              editing: column.member.id === editingMemberId,
+            }"
             :style="{ gridColumn: column.gridColumn, gridRow: 2 }"
           >
             {{ column.member.name }}
@@ -255,8 +355,15 @@ function span(schedule: Schedule): string {
             v-for="(column, index) in columns"
             :key="`lane-${column.day}-${column.member.id}`"
             class="lane"
-            :class="{ 'day-start': index % members.length === 0 }"
+            :class="{
+              'day-start': index % members.length === 0,
+              drawable: canDraw(column),
+            }"
             :style="{ gridColumn: column.gridColumn, gridRow: bodyRows }"
+            @pointerdown="onLaneDown($event, column)"
+            @pointermove="onLaneMove"
+            @pointerup="onLaneUp"
+            @pointercancel="onLaneUp"
           />
 
           <!-- 가로줄은 정각에만. 행 높이가 화면에 따라 변해도 자리가 맞는다. -->
@@ -266,6 +373,19 @@ function span(schedule: Schedule): string {
             class="hour-line"
             :style="{ gridColumn: '2 / -1', gridRow: rowForSlot(slot) }"
           />
+
+          <div
+            v-if="draftRange"
+            class="draft"
+            :style="{
+              gridColumn: draftRange.gridColumn,
+              gridRow: `${rowForSlot(draftRange.start)} / ${rowForSlot(
+                draftRange.end,
+              )}`,
+            }"
+          >
+            {{ slotToTime(draftRange.start) }}–{{ slotToTime(draftRange.end) }}
+          </div>
 
           <button
             v-for="block in blocks"
@@ -437,6 +557,34 @@ function span(schedule: Schedule): string {
 
 .lane.day-start {
   border-left: 1px solid var(--rule-strong);
+}
+
+/* 지금 그릴 수 있는 열. 아주 옅게 깔아 어디를 끌면 되는지 알린다. */
+.lane.drawable {
+  background: rgb(23 24 28 / 3%);
+  cursor: crosshair;
+}
+
+.who.editing {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.draft {
+  z-index: 2;
+  margin: 0 2px 1px 1px;
+  padding-top: 3px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  overflow: hidden;
+  border: 1.5px dashed var(--ink);
+  border-radius: 4px;
+  background: rgb(23 24 28 / 7%);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 
 .hour-line {
