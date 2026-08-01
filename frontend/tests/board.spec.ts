@@ -154,10 +154,8 @@ describe('내 일정 목록', () => {
 })
 
 describe('저장과 복원', () => {
-  it('선택과 잠금 상태를 브라우저에 남긴다', () => {
+  it('무엇을 보고 있었는지는 남는다', () => {
     const store = seeded()
-    store.unlocked = { 1: '1234' }
-    store.adminPassword = 'secret'
     store.toggleSelection(1)
 
     setActivePinia(createPinia())
@@ -165,14 +163,39 @@ describe('저장과 복원', () => {
     revived.restore()
 
     expect(revived.selectedIds).toEqual([1])
-    expect(revived.unlocked).toEqual({ 1: '1234' })
-    expect(revived.adminPassword).toBe('secret')
+  })
+
+  it('비밀번호는 브라우저에 남기지 않는다', () => {
+    const store = seeded()
+    store.unlocked = { 1: '1234' }
+    store.adminPassword = 'secret'
+    store.toggleSelection(1)
+
+    expect(localStorage.getItem('club-schedule') ?? '').not.toContain('1234')
+    expect(localStorage.getItem('club-schedule') ?? '').not.toContain('secret')
+
+    setActivePinia(createPinia())
+    const revived = useBoardStore()
+    revived.restore()
+
+    expect(revived.unlocked).toEqual({})
+    expect(revived.adminPassword).toBe('')
   })
 
   it('저장된 것이 없어도 문제없다', () => {
     const store = useBoardStore()
     store.restore()
     expect(store.selectedIds).toEqual([])
+  })
+})
+
+describe('forgetMember', () => {
+  it('수정이 끝나면 들고 있던 비밀번호를 버린다', () => {
+    const store = seeded()
+    store.unlocked = { 1: '1234', 2: '1111' }
+    store.forgetMember(1)
+    expect(store.canEdit(1)).toBe(false)
+    expect(store.canEdit(2)).toBe(true)
   })
 })
 
@@ -190,13 +213,11 @@ describe('fetchBoard', () => {
     const store = seeded()
     store.toggleSelection(1)
     store.unlocked = { 1: '1234' }
-    store.activeMemberId = 1
 
     stubBoard([MEMBERS[0]], [])
     await store.fetchBoard()
     expect(store.selectedIds).toEqual([])
     expect(store.unlocked).toEqual({})
-    expect(store.activeMemberId).toBeNull()
     vi.unstubAllGlobals()
   })
 

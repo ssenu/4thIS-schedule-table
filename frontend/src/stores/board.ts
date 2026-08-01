@@ -23,20 +23,19 @@ interface BoardState {
   members: Member[]
   schedules: Schedule[]
   selectedIds: number[]
-  /** memberId -> 4자리 비밀번호. 잠금 해제한 사람만 들어 있다. */
+  /**
+   * memberId -> 4자리 비밀번호. 수정하는 동안만 들고 있고 저장하지 않는다.
+   * 수정을 끝내면 지우므로, 다음에 고치려면 비밀번호를 다시 넣어야 한다.
+   */
   unlocked: Record<number, string>
   adminPassword: string
-  /** "내 일정" 화면이 대상으로 삼는 멤버. */
-  activeMemberId: number | null
   error: string
   loading: boolean
 }
 
+/** 브라우저에 남기는 것은 무엇을 보고 있었는지뿐이다. 비밀번호는 남기지 않는다. */
 interface Persisted {
   selectedIds?: number[]
-  unlocked?: Record<number, string>
-  adminPassword?: string
-  activeMemberId?: number | null
 }
 
 export const useBoardStore = defineStore('board', {
@@ -47,7 +46,6 @@ export const useBoardStore = defineStore('board', {
     selectedIds: [],
     unlocked: {},
     adminPassword: '',
-    activeMemberId: null,
     error: '',
     loading: false,
   }),
@@ -129,9 +127,6 @@ export const useBoardStore = defineStore('board', {
           delete this.unlocked[Number(key)]
         }
       }
-      if (this.activeMemberId !== null && !alive.has(this.activeMemberId)) {
-        this.activeMemberId = null
-      }
       this.persist()
     },
 
@@ -161,7 +156,6 @@ export const useBoardStore = defineStore('board', {
         { memberId: id, memberPassword: password },
       )
       this.unlocked[id] = password
-      this.activeMemberId = id
       if (!this.selectedIds.includes(id)) {
         this.selectedIds.push(id)
       }
@@ -179,11 +173,9 @@ export const useBoardStore = defineStore('board', {
       this.persist()
     },
 
-    lockAll() {
-      this.unlocked = {}
-      this.adminPassword = ''
-      this.activeMemberId = null
-      this.persist()
+    /** 수정이 끝나면 들고 있던 비밀번호를 버린다. */
+    forgetMember(id: number) {
+      delete this.unlocked[id]
     },
 
     reportError(err: unknown) {
@@ -192,12 +184,7 @@ export const useBoardStore = defineStore('board', {
     },
 
     persist() {
-      const payload: Persisted = {
-        selectedIds: this.selectedIds,
-        unlocked: this.unlocked,
-        adminPassword: this.adminPassword,
-        activeMemberId: this.activeMemberId,
-      }
+      const payload: Persisted = { selectedIds: this.selectedIds }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
     },
 
@@ -209,9 +196,6 @@ export const useBoardStore = defineStore('board', {
       try {
         const saved = JSON.parse(raw) as Persisted
         this.selectedIds = saved.selectedIds ?? []
-        this.unlocked = saved.unlocked ?? {}
-        this.adminPassword = saved.adminPassword ?? ''
-        this.activeMemberId = saved.activeMemberId ?? null
       } catch {
         localStorage.removeItem(STORAGE_KEY)
       }

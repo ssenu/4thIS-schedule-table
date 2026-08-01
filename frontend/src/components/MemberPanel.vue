@@ -79,7 +79,6 @@ async function commitAll() {
               class="name"
               :class="{
                 on: store.selectedIds.includes(element.id),
-                mine: store.unlocked[element.id] !== undefined,
                 grab: store.isAdmin,
               }"
               :title="element.name"
@@ -149,11 +148,7 @@ h2 {
   min-height: 30px;
 }
 
-/*
- * 채워진 박스는 표에 보이는 사람, 굵은 글씨는 내가 비밀번호를 넣어 둔 이름이다.
- * 두 가지를 기호 없이 박스 하나로 말한다. (관리자는 모두를 고칠 수 있지만
- * 그건 굵기로 말하지 않는다 — 전부 굵어지면 아무것도 구분하지 못한다.)
- */
+/* 채워진 박스는 지금 표에 보이는 사람이다. 기호 없이 박스 하나로 말한다. */
 .name {
   font: inherit;
   font-size: 12.5px;
@@ -179,10 +174,6 @@ h2 {
   background: var(--ink);
   border-color: var(--ink);
   color: var(--paper);
-}
-
-.name.mine {
-  font-weight: 700;
 }
 
 .name.grab {

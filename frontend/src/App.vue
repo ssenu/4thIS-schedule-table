@@ -64,26 +64,27 @@ function startEditing() {
   if (id === null) {
     return
   }
-  // 관리자이거나 이미 비밀번호를 넣어 둔 이름이면 다시 묻지 않는다.
-  if (store.canEdit(id)) {
+  // 관리자는 이미 확인을 마쳤다. 그 밖에는 누를 때마다 비밀번호를 묻는다.
+  if (store.isAdmin) {
     editingMemberId.value = id
   } else {
     unlockFor.value = { mode: 'member', memberId: id }
   }
 }
 
-function stopEditing() {
-  editingMemberId.value = null
-}
-
-function lockEverything() {
-  store.lockAll()
-  editingMemberId.value = null
+/** 수정을 끝내며 들고 있던 비밀번호를 버린다. 다음에 고치려면 다시 넣어야 한다. */
+function endEditing() {
+  if (editingMemberId.value !== null) {
+    store.forgetMember(editingMemberId.value)
+    editingMemberId.value = null
+  }
 }
 
 function toggleAdmin() {
   if (store.isAdmin) {
     store.lockAdmin()
+    // 관리자 권한으로 고치던 중이었다면 권한이 사라지므로 함께 끝낸다.
+    endEditing()
   } else {
     unlockFor.value = { mode: 'admin' }
   }
@@ -97,7 +98,7 @@ watch(
       editingMemberId.value !== null &&
       !(ids.length === 1 && ids[0] === editingMemberId.value)
     ) {
-      editingMemberId.value = null
+      endEditing()
     }
   },
 )
@@ -175,7 +176,7 @@ onUnmounted(() => {
         >
           이름 수정
         </button>
-        <button type="button" class="btn btn--primary" @click="stopEditing">
+        <button type="button" class="btn btn--primary" @click="endEditing">
           완료
         </button>
       </template>
@@ -230,15 +231,6 @@ onUnmounted(() => {
         @click="toggleAdmin"
       >
         관리자
-      </button>
-      <button
-        v-if="Object.keys(store.unlocked).length > 0"
-        type="button"
-        class="btn btn--quiet btn--sm"
-        title="이 브라우저에 기억해 둔 비밀번호를 지웁니다"
-        @click="lockEverything"
-      >
-        잠그기
       </button>
     </header>
 
