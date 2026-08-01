@@ -10,6 +10,7 @@ import ScheduleGrid from '@/components/ScheduleGrid.vue'
 import UnlockDialog from '@/components/UnlockDialog.vue'
 import { useBoardStore } from '@/stores/board'
 import type { Schedule } from '@/types'
+import { COLOR_MODE_LABEL, nextColorMode } from '@/utils/blockColor'
 
 const store = useBoardStore()
 
@@ -33,6 +34,11 @@ const showCategories = ref(false)
 /** 수정은 한 사람씩. 둘 이상 고른 채로는 누구 걸 고치는지 알 수 없다. */
 const selectedOne = computed(() =>
   store.selectedIds.length === 1 ? store.selectedIds[0] : null,
+)
+
+const colorLabel = computed(() => COLOR_MODE_LABEL[store.colorMode])
+const nextColorLabel = computed(
+  () => COLOR_MODE_LABEL[nextColorMode(store.colorMode)],
 )
 
 const editingMember = computed(() =>
@@ -165,6 +171,20 @@ onUnmounted(() => {
       <span class="spacer" />
 
       <template v-if="editingMember">
+        <button
+          type="button"
+          class="btn btn--icon"
+          :title="`색 기준: ${colorLabel} — 누르면 ${nextColorLabel}`"
+          :aria-label="`색 기준 ${colorLabel}, 눌러서 ${nextColorLabel}로`"
+          @click="store.cycleColorMode()"
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <circle cx="5.6" cy="8" r="3.4" fill="currentColor" opacity="0.3" />
+            <circle cx="8" cy="8" r="3.4" fill="currentColor" opacity="0.55" />
+            <circle cx="10.4" cy="8" r="3.4" fill="currentColor" opacity="0.85" />
+          </svg>
+          {{ colorLabel }}
+        </button>
         <span class="now">{{ editingMember.name }} 수정 중</span>
         <button type="button" class="btn" @click="showMyList = true">
           일정 관리
@@ -188,6 +208,20 @@ onUnmounted(() => {
           @click="memberDialog = { mode: 'create' }"
         >
           이름 등록
+        </button>
+        <button
+          type="button"
+          class="btn btn--icon"
+          :title="`색 기준: ${colorLabel} — 누르면 ${nextColorLabel}`"
+          :aria-label="`색 기준 ${colorLabel}, 눌러서 ${nextColorLabel}로`"
+          @click="store.cycleColorMode()"
+        >
+          <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+            <circle cx="5.6" cy="8" r="3.4" fill="currentColor" opacity="0.3" />
+            <circle cx="8" cy="8" r="3.4" fill="currentColor" opacity="0.55" />
+            <circle cx="10.4" cy="8" r="3.4" fill="currentColor" opacity="0.85" />
+          </svg>
+          {{ colorLabel }}
         </button>
         <button
           type="button"
@@ -250,6 +284,7 @@ onUnmounted(() => {
           :schedules="store.visibleSchedules"
           :paused="anyDialogOpen"
           :editing-member-id="editingMemberId"
+          :color-mode="store.colorMode"
           @select="openBlock"
           @draft="onDraft"
         />

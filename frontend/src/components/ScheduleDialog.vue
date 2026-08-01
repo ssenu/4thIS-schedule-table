@@ -156,6 +156,11 @@ async function remove() {
         />
       </label>
 
+      <p v-if="store.colorMode !== 'own'" class="notice notice--quiet">
+        지금은 {{ store.colorMode === 'day' ? '요일별' : '인원별' }} 색으로 보는
+        중이라, 고른 색은 색 기준을 “기본”으로 되돌려야 보입니다.
+      </p>
+
       <div class="field">
         <span>색</span>
         <div class="swatches">

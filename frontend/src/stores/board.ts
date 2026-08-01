@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia'
 import { ApiError, api } from '@/api/client'
 import type { Category, Credentials, Member, Schedule } from '@/types'
+import type { ColorMode } from '@/utils/blockColor'
+import { nextColorMode } from '@/utils/blockColor'
 
 const STORAGE_KEY = 'club-schedule'
 
@@ -29,6 +31,8 @@ interface BoardState {
    */
   unlocked: Record<number, string>
   adminPassword: string
+  /** 블록 색을 무엇으로 정할지. 보기 설정이라 브라우저에 남긴다. */
+  colorMode: ColorMode
   error: string
   loading: boolean
 }
@@ -36,6 +40,7 @@ interface BoardState {
 /** 브라우저에 남기는 것은 무엇을 보고 있었는지뿐이다. 비밀번호는 남기지 않는다. */
 interface Persisted {
   selectedIds?: number[]
+  colorMode?: ColorMode
 }
 
 export const useBoardStore = defineStore('board', {
@@ -46,6 +51,7 @@ export const useBoardStore = defineStore('board', {
     selectedIds: [],
     unlocked: {},
     adminPassword: '',
+    colorMode: 'own',
     error: '',
     loading: false,
   }),
@@ -178,13 +184,21 @@ export const useBoardStore = defineStore('board', {
       delete this.unlocked[id]
     },
 
+    cycleColorMode() {
+      this.colorMode = nextColorMode(this.colorMode)
+      this.persist()
+    },
+
     reportError(err: unknown) {
       this.error =
         err instanceof ApiError ? err.message : '알 수 없는 오류가 발생했습니다.'
     },
 
     persist() {
-      const payload: Persisted = { selectedIds: this.selectedIds }
+      const payload: Persisted = {
+        selectedIds: this.selectedIds,
+        colorMode: this.colorMode,
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
     },
 
@@ -196,6 +210,7 @@ export const useBoardStore = defineStore('board', {
       try {
         const saved = JSON.parse(raw) as Persisted
         this.selectedIds = saved.selectedIds ?? []
+        this.colorMode = saved.colorMode ?? 'own'
       } catch {
         localStorage.removeItem(STORAGE_KEY)
       }

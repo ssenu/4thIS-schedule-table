@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { MIN_COLUMN_WIDTH, RULER_WIDTH, SLOT_COUNT } from '@/constants'
 import type { Member, Schedule } from '@/types'
+import type { ColorMode } from '@/utils/blockColor'
+import { blockColor } from '@/utils/blockColor'
 import { textOn } from '@/utils/contrast'
 import { daysPerPage, pageLabel, splitIntoPages } from '@/utils/dayPages'
 import type { GridColumn } from '@/utils/gridLayout'
@@ -21,6 +23,8 @@ const props = defineProps<{
   paused?: boolean
   /** 수정 중인 사람. 이 사람 열에서는 끌어서 일정을 만든다. */
   editingMemberId?: number | null
+  /** 블록 색을 무엇으로 정할지. */
+  colorMode?: ColorMode
 }>()
 const emit = defineEmits<{
   select: [schedule: Schedule]
@@ -246,6 +250,15 @@ const draftRange = computed(() => {
 
 /* ── 그리기 ──────────────────────────────────────────────────── */
 
+/** 화면에 놓인 순서. 인원별 색은 이 자리로 팔레트를 고른다. */
+const memberIndex = computed(
+  () => new Map(props.members.map((member, index) => [member.id, index])),
+)
+
+function paint(schedule: Schedule): string {
+  return blockColor(schedule, props.colorMode ?? 'own', memberIndex.value)
+}
+
 const columns = computed(() => buildColumns(props.members, currentDays.value))
 const dayHeaders = computed(() =>
   buildDayHeaders(props.members.length, currentDays.value),
@@ -396,8 +409,8 @@ function span(schedule: Schedule): string {
             :style="{
               gridColumn: block.gridColumn,
               gridRow: `${block.gridRowStart} / ${block.gridRowEnd}`,
-              backgroundColor: block.schedule.color,
-              color: textOn(block.schedule.color),
+              backgroundColor: paint(block.schedule),
+              color: textOn(paint(block.schedule)),
             }"
             @click="onBlockClick(block.schedule)"
           >
