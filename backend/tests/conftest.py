@@ -1,11 +1,15 @@
+from urllib.parse import quote
+
 import pytest
 from fastapi.testclient import TestClient
 
 from app.auth import AttemptLimiter, hash_password
 from app.db import connect, initialize
+from app.gate import GateKeeper, seed_gate
 from app.main import create_app
 
 ADMIN_PASSWORD = "admin-secret"
+GATE_PASSWORD = "club-gate"
 
 
 class FakeClock:
@@ -28,6 +32,7 @@ def clock():
 def conn(tmp_path):
     connection = connect(tmp_path / "test.db")
     initialize(connection, hash_password(ADMIN_PASSWORD))
+    seed_gate(connection, GATE_PASSWORD)
     yield connection
     connection.close()
 
@@ -38,8 +43,29 @@ def limiter(clock):
 
 
 @pytest.fixture
-def client(conn, limiter):
-    with TestClient(create_app(conn, limiter)) as test_client:
+def keeper():
+    return GateKeeper()
+
+
+@pytest.fixture
+def app(conn, limiter, keeper):
+    return create_app(conn, limiter, keeper)
+
+
+@pytest.fixture
+def client(app):
+    """게이트를 통과한 손님. 모든 요청에 입장 비밀번호가 붙는다."""
+    with TestClient(app) as test_client:
+        test_client.headers.update(
+            {"X-Gate-Password": quote(GATE_PASSWORD, safe="")}
+        )
+        yield test_client
+
+
+@pytest.fixture
+def stranger(app):
+    """입장 비밀번호를 모르는 손님."""
+    with TestClient(app) as test_client:
         yield test_client
 
 
