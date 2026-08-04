@@ -28,3 +28,8 @@ export const TITLE_MAX_LEN = 30
  */
 export const RULER_WIDTH = 46
 export const MIN_COLUMN_WIDTH = 96
+
+// backend/app/gate.py 의 DEFAULT_TITLE · DEFAULT_INTRO 와 같아야 한다.
+export const DEFAULT_GATE_TITLE = '동아리 주간 시간표'
+export const DEFAULT_GATE_INTRO =
+  '동아리원만 볼 수 있습니다. 받은 비밀번호를 넣어 주세요.'

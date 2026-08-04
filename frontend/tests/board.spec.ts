@@ -58,6 +58,7 @@ function stubBoard(members: Member[], schedules: Schedule[]) {
     vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
+      headers: { get: () => null },
       text: () =>
         Promise.resolve(
           JSON.stringify({ categories: CATEGORIES, members, schedules }),
@@ -229,3 +230,59 @@ describe('fetchBoard', () => {
     vi.unstubAllGlobals()
   })
 })
+
+describe('입장 게이트', () => {
+  it('입장 비밀번호는 브라우저에 남는다', () => {
+    const store = seeded()
+    store.gatePassword = 'club-gate'
+    store.persist()
+
+    setActivePinia(createPinia())
+    const revived = useBoardStore()
+    revived.restore()
+
+    expect(revived.gatePassword).toBe('club-gate')
+  })
+
+  it('저장된 비밀번호가 있으면 문을 지난 것으로 시작한다', () => {
+    const store = seeded()
+    store.gatePassword = 'club-gate'
+    store.persist()
+
+    setActivePinia(createPinia())
+    const revived = useBoardStore()
+    revived.restore()
+
+    expect(revived.gateOpen).toBe(true)
+  })
+
+  it('저장된 비밀번호가 없으면 문 앞에서 시작한다', () => {
+    const store = useBoardStore()
+    store.restore()
+    expect(store.gateOpen).toBe(false)
+  })
+
+  it('게이트에 막히면 문 앞으로 돌아가고 비밀번호를 버린다', async () => {
+    const store = seeded()
+    store.gatePassword = 'stale'
+    store.gateOpen = true
+
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 401,
+        headers: { get: (name: string) => (name === 'X-Gate' ? 'required' : null) },
+        text: () =>
+          Promise.resolve(JSON.stringify({ detail: '입장 비밀번호가 필요합니다.' })),
+      }),
+    )
+    await store.fetchBoard()
+
+    expect(store.gateOpen).toBe(false)
+    expect(store.gatePassword).toBe('')
+    expect(store.error).toBe('')
+    vi.unstubAllGlobals()
+  })
+})
+

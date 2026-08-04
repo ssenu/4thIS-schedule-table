@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
-import { ApiError, api } from '@/api/client'
+import { ApiError, api, setGatePassword } from '@/api/client'
+import { DEFAULT_GATE_INTRO, DEFAULT_GATE_TITLE } from '@/constants'
 import type { Category, Credentials, Member, Schedule } from '@/types'
 import type { ColorMode } from '@/utils/blockColor'
 import { nextColorMode } from '@/utils/blockColor'
@@ -31,6 +32,12 @@ interface BoardState {
    */
   unlocked: Record<number, string>
   adminPassword: string
+  /** 입장 비밀번호를 넣고 사이트 안에 들어와 있는지. */
+  gateOpen: boolean
+  gateTitle: string
+  gateIntro: string
+  /** 유일하게 브라우저에 남기는 비밀번호. 개인·관리자 것은 남기지 않는다. */
+  gatePassword: string
   /** 블록 색을 무엇으로 정할지. 보기 설정이라 브라우저에 남긴다. */
   colorMode: ColorMode
   error: string
@@ -41,6 +48,7 @@ interface BoardState {
 interface Persisted {
   selectedIds?: number[]
   colorMode?: ColorMode
+  gatePassword?: string
 }
 
 export const useBoardStore = defineStore('board', {
@@ -51,6 +59,10 @@ export const useBoardStore = defineStore('board', {
     selectedIds: [],
     unlocked: {},
     adminPassword: '',
+    gateOpen: false,
+    gateTitle: DEFAULT_GATE_TITLE,
+    gateIntro: DEFAULT_GATE_INTRO,
+    gatePassword: '',
     colorMode: 'own',
     error: '',
     loading: false,
@@ -118,10 +130,37 @@ export const useBoardStore = defineStore('board', {
         this.pruneSelection()
         this.error = ''
       } catch (err) {
+        if (err instanceof ApiError && err.gateRequired) {
+          // 문 앞으로 돌아가는 것이 이미 설명이다. 빨간 띠까지 띄우지 않는다.
+          this.gateOpen = false
+          this.gatePassword = ''
+          setGatePassword('')
+          this.error = ''
+          this.persist()
+          return
+        }
         this.reportError(err)
       } finally {
         this.loading = false
       }
+    },
+
+    async loadGate() {
+      try {
+        const gate = await api.gate()
+        this.gateTitle = gate.title
+        this.gateIntro = gate.intro
+      } catch {
+        // 문구를 못 받아도 첫 화면은 기본 문구로 뜬다.
+      }
+    },
+
+    async enterGate(password: string) {
+      await api.verifyGate(password)
+      this.gatePassword = password
+      setGatePassword(password)
+      this.gateOpen = true
+      this.persist()
     },
 
     /** 서버에서 사라진 멤버를 선택·잠금 목록에서 걷어낸다. */
@@ -198,6 +237,7 @@ export const useBoardStore = defineStore('board', {
       const payload: Persisted = {
         selectedIds: this.selectedIds,
         colorMode: this.colorMode,
+        gatePassword: this.gatePassword,
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
     },
@@ -211,6 +251,11 @@ export const useBoardStore = defineStore('board', {
         const saved = JSON.parse(raw) as Persisted
         this.selectedIds = saved.selectedIds ?? []
         this.colorMode = saved.colorMode ?? 'own'
+        this.gatePassword = saved.gatePassword ?? ''
+        setGatePassword(this.gatePassword)
+        // 저장된 비밀번호가 맞는지는 첫 요청이 알려 준다. 맞으면 화면이
+        // 깜빡이지 않고, 틀리면 그때 문 앞으로 돌아간다.
+        this.gateOpen = this.gatePassword !== ''
       } catch {
         localStorage.removeItem(STORAGE_KEY)
       }

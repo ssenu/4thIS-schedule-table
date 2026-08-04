@@ -4,10 +4,24 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** 입장 비밀번호가 없거나 틀려서 막힌 경우. 첫 화면으로 돌려보낸다. */
+    public gateRequired = false,
   ) {
     super(message)
     this.name = 'ApiError'
   }
+}
+
+/**
+ * 입장 비밀번호. 모든 요청에 실린다.
+ *
+ * 자격 증명과 달리 요청마다 넘겨받지 않고 여기 둔다 — 호출하는 쪽 전부가
+ * 이 값을 알 필요는 없고, 사이트에 들어와 있는 동안은 늘 같기 때문이다.
+ */
+let gatePassword = ''
+
+export function setGatePassword(value: string): void {
+  gatePassword = value
 }
 
 /**
@@ -52,6 +66,9 @@ export async function request<T>(
   options: { body?: unknown; creds?: Credentials } = {},
 ): Promise<T> {
   const headers: Record<string, string> = { ...authHeaders(options.creds) }
+  if (gatePassword) {
+    headers['X-Gate-Password'] = encodeURIComponent(gatePassword)
+  }
   if (options.body !== undefined) {
     headers['Content-Type'] = 'application/json'
   }
@@ -74,7 +91,12 @@ export async function request<T>(
   const text = await response.text()
   const data = text ? JSON.parse(text) : null
   if (!response.ok) {
-    throw new ApiError(response.status, extractDetail(data, response.status))
+    const gateRequired = response.headers.get('X-Gate') === 'required'
+    throw new ApiError(
+      response.status,
+      extractDetail(data, response.status),
+      gateRequired,
+    )
   }
   return data as T
 }
@@ -83,6 +105,17 @@ type VerifyBody = { scope: 'admin' } | { scope: 'member'; member_id: number }
 
 export const api = {
   board: () => request<Board>('GET', '/api/board'),
+
+  gate: () => request<{ title: string; intro: string }>('GET', '/api/gate'),
+
+  verifyGate: (password: string) =>
+    request<{ ok: boolean }>('POST', '/api/gate/verify', { body: { password } }),
+
+  updateGate: (
+    body: { title?: string; intro?: string; password?: string },
+    creds: Credentials,
+  ) =>
+    request<{ title: string; intro: string }>('PATCH', '/api/gate', { body, creds }),
 
   verify: (body: VerifyBody, creds: Credentials) =>
     request<{ ok: boolean }>('POST', '/api/auth/verify', { body, creds }),

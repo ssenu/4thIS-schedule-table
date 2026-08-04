@@ -1,11 +1,16 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ApiError, authHeaders, request } from '@/api/client'
+import { ApiError, authHeaders, request, setGatePassword } from '@/api/client'
 
-function stubFetch(status: number, body: unknown) {
+function stubFetch(
+  status: number,
+  body: unknown,
+  headers: Record<string, string> = {},
+) {
   const text = body === null ? '' : JSON.stringify(body)
   const fake = vi.fn().mockResolvedValue({
     ok: status >= 200 && status < 300,
     status,
+    headers: { get: (name: string) => headers[name] ?? null },
     text: () => Promise.resolve(text),
   })
   vi.stubGlobal('fetch', fake)
@@ -104,5 +109,49 @@ describe('request', () => {
     await expect(request('DELETE', '/api/categories/1')).rejects.toBeInstanceOf(
       ApiError,
     )
+  })
+})
+
+describe('입장 비밀번호', () => {
+  afterEach(() => {
+    setGatePassword('')
+  })
+
+  it('정해 두면 모든 요청에 붙는다', async () => {
+    setGatePassword('club-gate')
+    const fake = stubFetch(200, {})
+    await request('GET', '/api/board')
+    const [, init] = fake.mock.calls[0]
+    expect(init.headers['X-Gate-Password']).toBe('club-gate')
+  })
+
+  it('비ASCII 비밀번호도 퍼센트 인코딩해 싣는다', async () => {
+    setGatePassword('동아리비밀')
+    const fake = stubFetch(200, {})
+    await request('GET', '/api/board')
+    const [, init] = fake.mock.calls[0]
+    expect(init.headers['X-Gate-Password']).toBe(encodeURIComponent('동아리비밀'))
+  })
+
+  it('정해 두지 않으면 헤더가 없다', async () => {
+    const fake = stubFetch(200, {})
+    await request('GET', '/api/board')
+    const [, init] = fake.mock.calls[0]
+    expect(init.headers['X-Gate-Password']).toBeUndefined()
+  })
+
+  it('X-Gate 가 붙은 401 은 게이트 오류로 갈린다', async () => {
+    stubFetch(401, { detail: '입장 비밀번호가 필요합니다.' }, { 'X-Gate': 'required' })
+    await expect(request('GET', '/api/board')).rejects.toMatchObject({
+      status: 401,
+      gateRequired: true,
+    })
+  })
+
+  it('그냥 401 은 보통 오류다', async () => {
+    stubFetch(401, { detail: '비밀번호가 틀렸습니다.' })
+    await expect(request('POST', '/api/auth/verify')).rejects.toMatchObject({
+      gateRequired: false,
+    })
   })
 })
