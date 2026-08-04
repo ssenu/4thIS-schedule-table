@@ -16,8 +16,12 @@ COPY --from=web /web/dist ./frontend/dist
 # 배포처의 환경변수로 넘긴다 — 둘 다 없으면 서버가 시작을 거부한다.
 ENV DB_PATH=/data/schedule.db
 ENV FRONTEND_DIST=/srv/frontend/dist
-VOLUME ["/data"]
 EXPOSE 8000
+
+# VOLUME 을 쓰지 않는다. Railway 가 자기 볼륨과 충돌한다며 빌드를 거부한다.
+# /data 는 배포처에서 붙여 준다 — Railway 는 Settings → Volumes,
+# 직접 돌릴 때는 docker run -v 로. 붙이지 않으면 컨테이너와 함께 사라진다.
+# 디렉터리가 없어도 db.connect 가 만든다.
 
 # 시도 제한 카운터가 프로세스 메모리에 있으므로 워커는 반드시 1개다.
 # 앱은 임포트가 아니라 호출 시점에 만들어지므로 --factory 를 쓴다.
