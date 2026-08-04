@@ -11,3 +11,7 @@ dist/
 # 개발 중 만들어진 확인용 산출물
 .playwright-mcp/
 *.png
+
+# 관리자 비밀번호가 들어간 로컬 실행 스크립트
+backend/run.ps1
+
