@@ -98,7 +98,8 @@ def read_password_header(request: Request, name: str) -> str | None:
     return None if raw is None else unquote(raw)
 
 
-def _client_key(request: Request, target: str) -> str:
+def client_key(request: Request, target: str) -> str:
+    """시도 제한을 세는 단위. 같은 곳에서 같은 대상을 두드린 횟수를 센다."""
     host = request.client.host if request.client else "unknown"
     return f"{host}:{target}"
 
@@ -108,7 +109,7 @@ def _check_password(
 ) -> bool:
     """시도 제한을 적용하며 비밀번호를 대조한다. 실패하면 예외를 던진다."""
     limiter: AttemptLimiter = request.app.state.limiter
-    key = _client_key(request, target)
+    key = client_key(request, target)
     try:
         limiter.check(key)
     except LockedOut as exc:
