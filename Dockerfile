@@ -21,6 +21,9 @@ EXPOSE 8000
 
 # 시도 제한 카운터가 프로세스 메모리에 있으므로 워커는 반드시 1개다.
 # 앱은 임포트가 아니라 호출 시점에 만들어지므로 --factory 를 쓴다.
-CMD ["uvicorn", "app.main:create_production_app", "--factory", \
-     "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+#
+# Railway·Fly 같은 곳은 들을 포트를 PORT 로 넘긴다. 셸을 거쳐야 ${PORT} 가
+# 풀리고, exec 로 넘겨야 uvicorn 이 PID 1 이 되어 종료 신호를 직접 받는다.
+CMD ["sh", "-c", "exec uvicorn app.main:create_production_app --factory \
+     --host 0.0.0.0 --port ${PORT:-8000} --workers 1"]
 

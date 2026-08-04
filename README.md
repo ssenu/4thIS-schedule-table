@@ -62,8 +62,11 @@
 python -m venv .venv
 .venv/Scripts/python -m pip install -e ".[dev]"
 $env:ADMIN_PASSWORD='admin-secret'
+$env:GATE_PASSWORD='club-gate'
 .venv/Scripts/python -m uvicorn app.main:create_production_app --factory --reload --port 8000
 ```
+
+둘 다 없으면 서버가 뜨지 않습니다 — 게이트 없이 배포되는 사고를 막기 위해서입니다.
 
 프론트엔드 (`frontend/`):
 
@@ -75,27 +78,55 @@ npm run dev      # http://localhost:5173 — /api 요청은 8000으로 프록시
 테스트:
 
 ```
-cd backend  && .venv/Scripts/python -m pytest    # 146개
-cd frontend && npm test                          # 51개
+cd backend  && .venv/Scripts/python -m pytest    # 176개
+cd frontend && npm test                          # 93개
 ```
 
 ## 배포
 
 ### Railway
 
-1. 이 저장소를 GitHub 에 올립니다
-2. Railway 에서 **New Project → Deploy from GitHub repo** 로 저장소를 고릅니다
-   (`Dockerfile` 을 알아서 찾습니다)
-3. **Variables** 에 둘을 넣습니다
+**1. GitHub 에 올립니다** (저장소는 비공개로 두세요)
 
-   ```
-   ADMIN_PASSWORD = 충분히 긴 비밀번호
-   GATE_PASSWORD  = 동아리원에게 나눠 줄 비밀번호
-   ```
+```
+gh repo create 4thIS-schedule-table --private --source=. --remote=origin --push
+```
 
-4. **Settings → Volumes** 에서 볼륨을 만들고 마운트 경로를 `/data` 로 합니다.
-   **이걸 빠뜨리면 다시 배포할 때마다 등록한 이름과 일정이 사라집니다.**
-5. **Settings → Networking** 에서 도메인을 만들면 주소가 나옵니다
+**2. Railway 에서 프로젝트를 만듭니다**
+
+[railway.app](https://railway.app) 에 GitHub 계정으로 로그인 →
+**New Project → Deploy from GitHub repo** → 이 저장소 선택.
+루트의 `Dockerfile` 을 알아서 찾아 빌드합니다.
+
+**3. Variables 에 둘을 넣습니다**
+
+```
+ADMIN_PASSWORD = 충분히 긴 비밀번호
+GATE_PASSWORD  = 동아리원에게 나눠 줄 비밀번호
+```
+
+둘 중 하나라도 없으면 컨테이너가 시작하지 못하고 재시작을 반복합니다.
+
+**4. 볼륨을 붙입니다 — 이 단계를 빠뜨리면 안 됩니다**
+
+**Settings → Volumes → New Volume**, 마운트 경로 `/data`.
+**빠뜨리면 다시 배포할 때마다 등록한 이름과 일정이 전부 사라집니다.**
+볼륨은 나중에 붙여도 되지만, 그때까지 쌓인 데이터는 옮겨오지 못합니다.
+
+**5. 주소를 만듭니다**
+
+**Settings → Networking → Generate Domain** →
+`무엇무엇.up.railway.app` 주소가 나옵니다. 이걸 동아리원에게 알려주면 됩니다.
+
+**6. 첫 접속 후**
+
+입장 비밀번호를 넣고 들어가서 **입장 설정**에서 첫 화면 문구를 동아리에 맞게
+고칩니다. 입장 비밀번호도 여기서 바꿀 수 있고, 이렇게 바꾼 값은 `GATE_PASSWORD`
+환경변수보다 우선해 다시 배포해도 유지됩니다.
+
+> `GATE_PASSWORD` 는 **DB 가 비어 있을 때만** 심어집니다. `ADMIN_PASSWORD` 는
+> 반대로 부팅할 때마다 덮어씁니다 — 관리자 비밀번호를 잊으면 환경변수를 바꿔
+> 되찾을 수 있게 하려는 것입니다.
 
 ### 직접 돌리기
 
@@ -112,9 +143,11 @@ docker run -d -p 8000:8000 \
 
 | 환경변수 | 기본값 | 설명 |
 |---|---|---|
-| `ADMIN_PASSWORD` | (필수) | 관리자 비밀번호. 길이 제한 없음, 8자 이상 권장 |
+| `ADMIN_PASSWORD` | (필수) | 관리자 비밀번호. 부팅할 때마다 이 값으로 덮어씁니다 |
+| `GATE_PASSWORD` | (필수) | 입장 비밀번호. **DB 가 비어 있을 때만** 심습니다 |
 | `DB_PATH` | `/data/schedule.db` | SQLite 파일 경로 |
 | `FRONTEND_DIST` | `/srv/frontend/dist` | 빌드된 프론트 경로 |
+| `PORT` | `8000` | 들을 포트. Railway·Fly 는 자동으로 넣어 줍니다 |
 
 uvicorn 워커는 **1개**여야 합니다. 비밀번호 시도 제한과 입장 검증 기억이 프로세스
 메모리에 있어서, 워커가 여러 개면 제한이 워커 수만큼 느슨해집니다.
@@ -127,8 +160,10 @@ backend/app/
   timeslot.py    슬롯 정수 <-> "HH:MM" 변환, 겹침 판정
   db.py          SQLite 스키마와 커넥션 (날짜 컬럼 없음)
   auth.py        해시, 시도 제한, 요청 주체 판정, 권한 가드
+  gate.py        입장 비밀번호·첫 화면 문구, 통과한 비밀번호 기억
+  config.py      환경변수 읽기 (없으면 뜨지 않는다)
   schemas.py     Pydantic 입출력 모델
-  routers/       board · auth · categories · members · schedules
+  routers/       board · auth · gate · categories · members · schedules
 frontend/src/
   utils/timeSlot.ts    슬롯 <-> 시간 변환
   utils/gridLayout.ts  격자 열 구성과 블록 배치 (순수 함수 — 브라우저 없이 검증)
