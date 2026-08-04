@@ -155,8 +155,20 @@ export const useBoardStore = defineStore('board', {
       }
     },
 
+    /** 첫 화면에서 넣은 비밀번호. 맞는지 서버에 물어본 뒤 받아들인다. */
     async enterGate(password: string) {
       await api.verifyGate(password)
+      this.adoptGatePassword(password)
+    },
+
+    /**
+     * 관리자가 방금 세운 비밀번호를 확인 없이 받아들인다.
+     *
+     * 서버가 200 을 준 값이라 다시 물어볼 이유가 없다. 한 번 더 물으면
+     * 왕복이 늘고, 그 사이 옛 비밀번호를 들고 있는 창이 열려 폴링이
+     * 끼어들면 방금 바꾼 본인이 문 밖으로 밀려난다.
+     */
+    adoptGatePassword(password: string) {
       this.gatePassword = password
       setGatePassword(password)
       this.gateOpen = true

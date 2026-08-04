@@ -2,6 +2,8 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import CategoryEditor from '@/components/CategoryEditor.vue'
 import ErrorBanner from '@/components/ErrorBanner.vue'
+import GateEditor from '@/components/GateEditor.vue'
+import GateScreen from '@/components/GateScreen.vue'
 import MemberDialog from '@/components/MemberDialog.vue'
 import MemberPanel from '@/components/MemberPanel.vue'
 import MyScheduleList from '@/components/MyScheduleList.vue'
@@ -30,6 +32,7 @@ const scheduleDialog = ref<{
 } | null>(null)
 const showMyList = ref(false)
 const showCategories = ref(false)
+const showGate = ref(false)
 
 /** 수정은 한 사람씩. 둘 이상 고른 채로는 누구 걸 고치는지 알 수 없다. */
 const selectedOne = computed(() =>
@@ -62,7 +65,8 @@ const anyDialogOpen = computed(
     memberDialog.value !== null ||
     scheduleDialog.value !== null ||
     showMyList.value ||
-    showCategories.value,
+    showCategories.value ||
+    showGate.value,
 )
 
 function startEditing() {
@@ -141,7 +145,11 @@ const POLL_MS = 15_000
 let timer: number | undefined
 
 function refreshIfIdle() {
-  if (document.visibilityState !== 'visible' || anyDialogOpen.value) {
+  if (
+    !store.gateOpen ||
+    document.visibilityState !== 'visible' ||
+    anyDialogOpen.value
+  ) {
     return
   }
   void store.fetchBoard()
@@ -149,7 +157,12 @@ function refreshIfIdle() {
 
 onMounted(() => {
   store.restore()
-  void store.fetchBoard()
+  void store.loadGate()
+  // 저장된 비밀번호가 맞으면 첫 화면이 깜빡이지 않는다. 틀리면 스토어가
+  // 게이트 오류를 알아보고 문 앞으로 돌려보낸다.
+  if (store.gateOpen) {
+    void store.fetchBoard()
+  }
   timer = window.setInterval(refreshIfIdle, POLL_MS)
   document.addEventListener('visibilitychange', refreshIfIdle)
 })
@@ -163,7 +176,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="shell">
+  <GateScreen v-if="!store.gateOpen" />
+
+  <div v-else class="shell">
     <header class="bar">
       <h1>동아리 주간 시간표</h1>
       <span class="sub">매주 반복되는 일정만</span>
@@ -259,6 +274,14 @@ onUnmounted(() => {
         카테고리
       </button>
       <button
+        v-if="store.isAdmin"
+        type="button"
+        class="btn"
+        @click="showGate = true"
+      >
+        입장 설정
+      </button>
+      <button
         type="button"
         class="btn"
         :class="{ 'btn--primary': store.isAdmin }"
@@ -292,6 +315,8 @@ onUnmounted(() => {
     </div>
 
     <CategoryEditor v-if="showCategories" @close="showCategories = false" />
+
+    <GateEditor v-if="showGate" @close="showGate = false" />
 
     <UnlockDialog
       v-if="unlockFor"

@@ -15,6 +15,25 @@
 
 여러 칸에 걸친 일정은 **세로로 긴 블록 하나**로 그려지고 제목은 그 안에 한 번만 들어갑니다.
 
+## 들어오기
+
+사이트를 열면 먼저 **입장 비밀번호**를 묻습니다. 동아리원끼리 나눠 갖는 하나의
+비밀번호이고, 이걸 넣어야 시간표가 보입니다. 주소만 아는 사람은 데이터를 받아갈
+수 없습니다 — 화면뿐 아니라 서버 요청 자체가 막힙니다.
+
+한 번 넣으면 그 브라우저에 남아 다음부터는 묻지 않습니다. 관리자가 비밀번호를
+바꾸면 모두 다시 넣어야 합니다.
+
+관리자는 **입장 설정**에서 첫 화면 문구와 입장 비밀번호를 고칠 수 있습니다.
+
+비밀번호가 셋이라 헷갈리기 쉬우니 정리하면 이렇습니다.
+
+| 비밀번호 | 무엇을 여는가 | 누가 아는가 | 브라우저에 남는가 |
+|---|---|---|:---:|
+| 입장 | 사이트 자체 | 동아리원 전체가 같은 것 | 남음 |
+| 개인 4자리 | 내 일정 고치기 | 본인만 | 안 남음 |
+| 관리자 | 전부 고치기 · 입장 설정 | 운영하는 사람 | 안 남음 |
+
 ## 쓰는 법
 
 1. **이름 등록** — 본인 이름과 숫자 4자리 비밀번호를 정합니다
@@ -62,11 +81,34 @@ cd frontend && npm test                          # 51개
 
 ## 배포
 
+### Railway
+
+1. 이 저장소를 GitHub 에 올립니다
+2. Railway 에서 **New Project → Deploy from GitHub repo** 로 저장소를 고릅니다
+   (`Dockerfile` 을 알아서 찾습니다)
+3. **Variables** 에 둘을 넣습니다
+
+   ```
+   ADMIN_PASSWORD = 충분히 긴 비밀번호
+   GATE_PASSWORD  = 동아리원에게 나눠 줄 비밀번호
+   ```
+
+4. **Settings → Volumes** 에서 볼륨을 만들고 마운트 경로를 `/data` 로 합니다.
+   **이걸 빠뜨리면 다시 배포할 때마다 등록한 이름과 일정이 사라집니다.**
+5. **Settings → Networking** 에서 도메인을 만들면 주소가 나옵니다
+
+### 직접 돌리기
+
 ```
 docker build -t club-schedule .
-docker run -d -p 8000:8000 -e ADMIN_PASSWORD="충분히 긴 비밀번호" \
+docker run -d -p 8000:8000 \
+  -e ADMIN_PASSWORD="충분히 긴 비밀번호" \
+  -e GATE_PASSWORD="동아리 입장 비밀번호" \
   -v club-data:/data --restart unless-stopped club-schedule
 ```
+
+> **Vercel 은 쓸 수 없습니다.** Python 함수가 서버리스로 돌아 파일시스템이 읽기
+> 전용이고 요청마다 인스턴스가 새로 뜹니다. SQLite 에 쓴 데이터가 남지 않습니다.
 
 | 환경변수 | 기본값 | 설명 |
 |---|---|---|
@@ -74,8 +116,8 @@ docker run -d -p 8000:8000 -e ADMIN_PASSWORD="충분히 긴 비밀번호" \
 | `DB_PATH` | `/data/schedule.db` | SQLite 파일 경로 |
 | `FRONTEND_DIST` | `/srv/frontend/dist` | 빌드된 프론트 경로 |
 
-uvicorn 워커는 **1개**여야 합니다. 비밀번호 시도 제한 카운터가 프로세스 메모리에
-있어서, 워커가 여러 개면 제한이 워커 수만큼 느슨해집니다.
+uvicorn 워커는 **1개**여야 합니다. 비밀번호 시도 제한과 입장 검증 기억이 프로세스
+메모리에 있어서, 워커가 여러 개면 제한이 워커 수만큼 느슨해집니다.
 
 ## 구조
 
@@ -101,3 +143,4 @@ frontend/src/
 
 - 스펙: `docs/superpowers/specs/2026-07-31-club-weekly-schedule-design.md`
 - 구현 계획: `docs/superpowers/plans/2026-07-31-club-weekly-schedule.md`
+

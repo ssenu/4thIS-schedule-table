@@ -286,3 +286,23 @@ describe('입장 게이트', () => {
   })
 })
 
+describe('관리자가 입장 비밀번호를 바꿀 때', () => {
+  it('확인 없이 새 비밀번호를 받아들인다', () => {
+    const store = seeded()
+    store.gatePassword = 'old-gate'
+    store.gateOpen = true
+
+    store.adoptGatePassword('new-gate')
+
+    expect(store.gatePassword).toBe('new-gate')
+    expect(store.gateOpen).toBe(true)
+    expect(localStorage.getItem('club-schedule')).toContain('new-gate')
+  })
+
+  it('바꾸고 나서도 문 안에 남는다', () => {
+    const store = seeded()
+    store.gateOpen = true
+    store.adoptGatePassword('new-gate')
+    expect(store.gateOpen).toBe(true)
+  })
+})

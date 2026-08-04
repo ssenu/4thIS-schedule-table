@@ -12,6 +12,8 @@ COPY backend/app ./backend/app
 RUN pip install --no-cache-dir ./backend
 COPY --from=web /web/dist ./frontend/dist
 
+# ADMIN_PASSWORD 와 GATE_PASSWORD 는 이미지에 굽지 않는다.
+# 배포처의 환경변수로 넘긴다 — 둘 다 없으면 서버가 시작을 거부한다.
 ENV DB_PATH=/data/schedule.db
 ENV FRONTEND_DIST=/srv/frontend/dist
 VOLUME ["/data"]
@@ -21,3 +23,4 @@ EXPOSE 8000
 # 앱은 임포트가 아니라 호출 시점에 만들어지므로 --factory 를 쓴다.
 CMD ["uvicorn", "app.main:create_production_app", "--factory", \
      "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+
