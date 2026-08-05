@@ -79,7 +79,7 @@ npm run dev      # http://localhost:5173 — /api 요청은 8000으로 프록시
 
 ```
 cd backend  && .venv/Scripts/python -m pytest    # 176개
-cd frontend && npm test                          # 93개
+cd frontend && npm test                          # 110개
 ```
 
 ## 배포
@@ -167,6 +167,7 @@ backend/app/
 frontend/src/
   utils/timeSlot.ts    슬롯 <-> 시간 변환
   utils/gridLayout.ts  격자 열 구성과 블록 배치 (순수 함수 — 브라우저 없이 검증)
+  utils/draftBox.ts    끌어서 만든 초안의 크기·자리 규칙 (경계와 최소 길이)
   stores/board.ts      Pinia 상태
   components/          격자, 멤버 패널, 다이얼로그들
 ```

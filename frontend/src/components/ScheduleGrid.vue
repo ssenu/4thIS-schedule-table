@@ -5,6 +5,8 @@ import type { Member, Schedule } from '@/types'
 import type { ColorMode } from '@/utils/blockColor'
 import { blockColor } from '@/utils/blockColor'
 import { textOn } from '@/utils/contrast'
+import type { DraftBox } from '@/utils/draftBox'
+import { fromDrag, moveTo, resizeEnd, resizeStart } from '@/utils/draftBox'
 import { daysPerPage, pageLabel, splitIntoPages } from '@/utils/dayPages'
 import type { GridColumn } from '@/utils/gridLayout'
 import {
@@ -138,6 +140,12 @@ function onBlockClick(schedule: Schedule) {
 /* ── 키보드 ──────────────────────────────────────────────────── */
 
 function onKey(event: KeyboardEvent) {
+  // 초안을 물린다. 다이얼로그가 열려 있으면 ESC 는 그쪽 몫이다.
+  if (event.key === 'Escape' && !props.paused && draft.value !== null) {
+    clearDraft()
+    event.preventDefault()
+    return
+  }
   if (props.paused || pages.value.length < 2) {
     return
   }
@@ -173,16 +181,24 @@ onUnmounted(() => {
 
 /* ── 수정 중: 끌어서 일정 만들기 ─────────────────────────────── */
 
-interface Draft {
-  memberId: number
-  day: number
-  gridColumn: number
-  from: number
-  to: number
-}
+/**
+ * 초안을 지금 무엇으로 만지고 있는지. null 이면 그냥 놓여 있는 상태다.
+ *
+ * 놓여 있는 동안 ⊕ 가 뜨고, 그걸 눌러야 폼이 열린다. 손을 뗐다고 바로
+ * 폼이 뜨면 시간을 잘못 잡았을 때 처음부터 다시 끌어야 한다.
+ */
+type DraftMode = 'drawing' | 'resize-start' | 'resize-end' | 'moving'
 
-const draft = ref<Draft | null>(null)
+const draft = ref<DraftBox | null>(null)
+const draftEl = ref<HTMLElement>()
 let draftPointer: number | null = null
+const draftMode = ref<DraftMode | null>(null)
+/** 처음 그릴 때 누른 칸. 위로 끌든 아래로 끌든 여기서 잰다. */
+let drawAnchor = 0
+/** 옮길 때 블록 위 끝에서 몇 칸 아래를 잡았는지. */
+let moveGrab = 0
+/** 누르기만 하고 뗀 것인지 알려면, 누를 때 초안이 있었는지 기억해야 한다. */
+let hadDraft = false
 
 /** 열 안에서의 세로 위치를 슬롯 번호로. 줄 높이가 화면마다 달라 비율로 잰다. */
 function slotAt(element: HTMLElement, clientY: number): number {
@@ -196,57 +212,152 @@ function canDraw(column: GridColumn): boolean {
   return editing.value && column.member.id === props.editingMemberId
 }
 
+/**
+ * 좌표 아래에 있는 본인 열을 찾는다.
+ *
+ * 포인터를 붙잡아 둔 동안에는 event.currentTarget 이 처음 누른 열에 묶여
+ * 바뀌지 않는다. 요일을 넘나들려면 좌표로 다시 찾는 수밖에 없다.
+ */
+function laneAt(x: number, y: number): { day: number; el: HTMLElement } | null {
+  for (const el of document.elementsFromPoint(x, y)) {
+    if (!(el instanceof HTMLElement) || el.dataset.lane === undefined) {
+      continue
+    }
+    // 남의 열 위로는 옮길 수 없다. 본인 열에서만 그린다는 규칙 그대로다.
+    if (Number(el.dataset.member) !== props.editingMemberId) {
+      return null
+    }
+    return { day: Number(el.dataset.day), el }
+  }
+  return null
+}
+
+function clearDraft() {
+  draft.value = null
+  draftMode.value = null
+  draftPointer = null
+}
+
+/* 빈 칸에서 새로 그리기 */
+
 function onLaneDown(event: PointerEvent, column: GridColumn) {
   if (!canDraw(column) || event.button !== 0) {
     return
   }
-  const element = event.currentTarget as HTMLElement
-  const slot = slotAt(element, event.clientY)
-  draft.value = {
-    memberId: column.member.id,
-    day: column.day,
-    gridColumn: column.gridColumn,
-    from: slot,
-    to: slot,
-  }
+  hadDraft = draft.value !== null
+  drawAnchor = slotAt(event.currentTarget as HTMLElement, event.clientY)
+  draft.value = fromDrag(column.day, drawAnchor, drawAnchor)
+  draftMode.value = 'drawing'
   draftPointer = event.pointerId
   capture(event)
   event.preventDefault()
 }
 
 function onLaneMove(event: PointerEvent) {
-  if (draftPointer !== event.pointerId || draft.value === null) {
+  if (draftPointer !== event.pointerId || draftMode.value !== 'drawing') {
     return
   }
-  draft.value.to = slotAt(event.currentTarget as HTMLElement, event.clientY)
+  const slot = slotAt(event.currentTarget as HTMLElement, event.clientY)
+  draft.value = fromDrag(draft.value!.day, drawAnchor, slot)
 }
 
 function onLaneUp(event: PointerEvent) {
-  if (draftPointer !== event.pointerId || draft.value === null) {
+  if (draftPointer !== event.pointerId || draftMode.value !== 'drawing') {
     return
   }
-  const { memberId, day, from, to } = draft.value
-  emit('draft', {
-    memberId,
-    day,
-    start: Math.min(from, to),
-    end: Math.max(from, to) + 1,
-  })
-  draft.value = null
+  // 이미 초안이 있는데 끌지 않고 누르기만 했다면 치우라는 뜻이다.
+  const stillOneSlot = draft.value!.end - draft.value!.start === 1
+  if (hadDraft && stillOneSlot) {
+    clearDraft()
+    return
+  }
+  draftMode.value = null
   draftPointer = null
 }
 
-/** 어느 쪽으로 끌었든 위에서 아래로 정리한 구간. */
-const draftRange = computed(() => {
-  if (draft.value === null) {
+/* 놓인 초안을 잡고 고치기 */
+
+function beginGrab(event: PointerEvent, mode: DraftMode) {
+  if (draft.value === null || event.button !== 0) {
+    return
+  }
+  draftMode.value = mode
+  draftPointer = event.pointerId
+  if (mode === 'moving') {
+    const lane = laneAt(event.clientX, event.clientY)
+    moveGrab = lane === null ? 0 : slotAt(lane.el, event.clientY) - draft.value.start
+  }
+  // 가장자리에서 시작해도 초안 본체가 포인터를 붙잡게 해서, 이어지는
+  // 이동과 뗌을 한 곳에서 받는다.
+  try {
+    draftEl.value?.setPointerCapture(event.pointerId)
+  } catch {
+    // 활성 포인터가 아니면 무시한다.
+  }
+  event.preventDefault()
+}
+
+function onDraftMove(event: PointerEvent) {
+  if (draftPointer !== event.pointerId || draft.value === null) {
+    return
+  }
+  if (draftMode.value === null || draftMode.value === 'drawing') {
+    return
+  }
+  const lane = laneAt(event.clientX, event.clientY)
+  if (lane === null) {
+    return
+  }
+  const slot = slotAt(lane.el, event.clientY)
+  if (draftMode.value === 'resize-start') {
+    draft.value = resizeStart(draft.value, slot)
+  } else if (draftMode.value === 'resize-end') {
+    draft.value = resizeEnd(draft.value, slot)
+  } else {
+    draft.value = moveTo(draft.value, lane.day, slot - moveGrab)
+  }
+}
+
+function endGrab(event: PointerEvent) {
+  if (draftPointer !== event.pointerId) {
+    return
+  }
+  draftMode.value = null
+  draftPointer = null
+}
+
+/** ⊕. 여기서 비로소 폼이 열린다. */
+function openDraftForm() {
+  if (draft.value === null || props.editingMemberId == null) {
+    return
+  }
+  const { day, start, end } = draft.value
+  emit('draft', { memberId: props.editingMemberId, day, start, end })
+  clearDraft()
+}
+
+/** 초안이 놓인 열. 요일을 옮기면 따라 바뀐다. */
+const draftColumn = computed(() => {
+  const box = draft.value
+  if (box === null) {
     return null
   }
-  return {
-    gridColumn: draft.value.gridColumn,
-    start: Math.min(draft.value.from, draft.value.to),
-    end: Math.max(draft.value.from, draft.value.to) + 1,
-  }
+  const column = columns.value.find(
+    (c) => c.day === box.day && c.member.id === props.editingMemberId,
+  )
+  return column?.gridColumn ?? null
 })
+
+/** 맨 오른쪽 열이면 ⊕ 를 왼쪽에 둔다. 그대로 두면 화면 밖으로 밀린다. */
+const draftAtEdge = computed(
+  () =>
+    draftColumn.value !== null &&
+    draftColumn.value >=
+      totalColumns(props.members.length, currentDays.value.length),
+)
+
+/** 수정 모드를 나가면 초안도 걷는다. */
+watch(() => props.editingMemberId, clearDraft)
 
 /* ── 그리기 ──────────────────────────────────────────────────── */
 
@@ -372,6 +483,9 @@ function span(schedule: Schedule): string {
               'day-start': index % members.length === 0,
               drawable: canDraw(column),
             }"
+            data-lane=""
+            :data-day="column.day"
+            :data-member="column.member.id"
             :style="{ gridColumn: column.gridColumn, gridRow: bodyRows }"
             @pointerdown="onLaneDown($event, column)"
             @pointermove="onLaneMove"
@@ -388,16 +502,46 @@ function span(schedule: Schedule): string {
           />
 
           <div
-            v-if="draftRange"
+            v-if="draft && draftColumn !== null"
+            ref="draftEl"
             class="draft"
+            :class="{ held: draftMode !== null }"
             :style="{
-              gridColumn: draftRange.gridColumn,
-              gridRow: `${rowForSlot(draftRange.start)} / ${rowForSlot(
-                draftRange.end,
-              )}`,
+              gridColumn: draftColumn,
+              gridRow: `${rowForSlot(draft.start)} / ${rowForSlot(draft.end)}`,
             }"
+            @pointerdown="beginGrab($event, 'moving')"
+            @pointermove="onDraftMove"
+            @pointerup="endGrab"
+            @pointercancel="endGrab"
           >
-            {{ slotToTime(draftRange.start) }}–{{ slotToTime(draftRange.end) }}
+            <span class="draft-time">
+              {{ slotToTime(draft.start) }}–{{ slotToTime(draft.end) }}
+            </span>
+
+            <!-- 위아래 끝은 길이를 고치는 손잡이다. 가운데를 잡으면 옮겨진다. -->
+            <span
+              class="draft-edge draft-edge--top"
+              @pointerdown.stop="beginGrab($event, 'resize-start')"
+            />
+            <span
+              class="draft-edge draft-edge--bottom"
+              @pointerdown.stop="beginGrab($event, 'resize-end')"
+            />
+
+            <button
+              v-if="draftMode === null"
+              type="button"
+              class="draft-add"
+              :class="{ 'draft-add--flip': draftAtEdge }"
+              aria-label="이 시간으로 일정 만들기"
+              @pointerdown.stop
+              @click="openDraftForm"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 5.5v13M5.5 12h13" />
+              </svg>
+            </button>
           </div>
 
           <button
@@ -583,21 +727,100 @@ function span(schedule: Schedule): string {
   font-weight: 700;
 }
 
+/* 손을 떼도 남아 있고, 잡아서 늘리거나 옮길 수 있다. ⊕ 를 밖에 내달아야
+   해서 넘치는 것을 자르지 않는다 — 시간 글자만 따로 자른다. */
 .draft {
+  position: relative;
   z-index: 2;
   margin: 0 2px 1px 1px;
   padding-top: 3px;
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  overflow: hidden;
   border: 1.5px dashed var(--ink);
   border-radius: 4px;
   background: rgb(23 24 28 / 7%);
   font-family: var(--mono);
   font-size: 10px;
   font-variant-numeric: tabular-nums;
+  cursor: move;
+  touch-action: none;
+}
+
+/* 잡고 있는 동안 조금 진해져서 손에 들렸다는 것을 알린다. */
+.draft.held {
+  background: rgb(23 24 28 / 13%);
+}
+
+.draft-time {
+  overflow: hidden;
+  white-space: nowrap;
   pointer-events: none;
+}
+
+/* 위아래 끝. 짧은 초안에서는 둘이 만나 가운데가 없어지지 않게 줄인다. */
+.draft-edge {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 12px;
+  max-height: 34%;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.draft-edge--top {
+  top: 0;
+}
+
+.draft-edge--bottom {
+  bottom: 0;
+}
+
+/* 손가락으로는 12px 을 집기 어렵다. */
+@media (pointer: coarse) {
+  .draft-edge {
+    height: 16px;
+  }
+}
+
+/* 초안 오른쪽 바깥, 세로 가운데. 초안이 짧든 길든 늘 같은 자리다. */
+.draft-add {
+  position: absolute;
+  top: 50%;
+  right: -30px;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 1px solid var(--rule-strong);
+  border-radius: 50%;
+  background: var(--paper);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.draft-add:hover {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* 맨 오른쪽 열에서는 왼쪽에 단다. 그대로 두면 화면 밖으로 밀린다. */
+.draft-add--flip {
+  right: auto;
+  left: -30px;
+}
+
+.draft-add svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+  stroke-linecap: round;
 }
 
 .hour-line {
