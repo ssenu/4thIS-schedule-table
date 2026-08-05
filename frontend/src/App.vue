@@ -10,6 +10,7 @@ import MyScheduleList from '@/components/MyScheduleList.vue'
 import ScheduleDialog from '@/components/ScheduleDialog.vue'
 import ScheduleGrid from '@/components/ScheduleGrid.vue'
 import UnlockDialog from '@/components/UnlockDialog.vue'
+import { api } from '@/api/client'
 import { useBoardStore } from '@/stores/board'
 import type { Schedule } from '@/types'
 import { COLOR_MODE_LABEL, nextColorMode } from '@/utils/blockColor'
@@ -128,6 +129,54 @@ function onDraft(value: {
     memberId: value.memberId,
     preset: { day: value.day, start: value.start, end: value.end },
   }
+}
+
+interface Placement {
+  schedule: Schedule
+  day: number
+  start: number
+  end: number
+}
+
+/**
+ * 잡아 옮긴 자리를 그대로 저장한다.
+ *
+ * 폼으로 한 번 더 확인받지 않는다 — 이미 있는 일정을 옮기는 것이고,
+ * 마음에 들지 않으면 다시 잡아 옮기면 된다.
+ */
+async function place(v: Placement, duplicate: boolean) {
+  const creds = store.credentialsFor(v.schedule.member_id)
+  const where = { day_of_week: v.day, start_slot: v.start, end_slot: v.end }
+  try {
+    if (duplicate) {
+      await api.createSchedule(
+        {
+          member_id: v.schedule.member_id,
+          title: v.schedule.title,
+          color: v.schedule.color,
+          ...where,
+        },
+        creds,
+      )
+    } else {
+      await api.updateSchedule(v.schedule.id, where, creds)
+    }
+    await store.fetchBoard()
+  } catch (err) {
+    store.reportError(err)
+  }
+}
+
+function onMove(v: Placement) {
+  void place(v, false)
+}
+
+function onCopy(v: Placement) {
+  void place(v, true)
+}
+
+function onClash() {
+  store.error = '이미 있는 일정과 겹쳐서 놓을 수 없습니다.'
 }
 
 /** 목록 위에 폼이 겹쳐 뜨지 않도록 목록을 접고 폼을 연다. */
@@ -314,6 +363,9 @@ onUnmounted(() => {
           :color-mode="store.colorMode"
           @select="openBlock"
           @draft="onDraft"
+          @move="onMove"
+          @copy="onCopy"
+          @clash="onClash"
         />
       </div>
     </div>

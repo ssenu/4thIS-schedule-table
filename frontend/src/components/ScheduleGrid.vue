@@ -6,7 +6,13 @@ import type { ColorMode } from '@/utils/blockColor'
 import { blockColor } from '@/utils/blockColor'
 import { textOn } from '@/utils/contrast'
 import type { DraftBox } from '@/utils/draftBox'
-import { fromDrag, moveTo, resizeEnd, resizeStart } from '@/utils/draftBox'
+import {
+  clashes,
+  fromDrag,
+  moveTo,
+  resizeEnd,
+  resizeStart,
+} from '@/utils/draftBox'
 import { daysPerPage, pageLabel, splitIntoPages } from '@/utils/dayPages'
 import type { GridColumn } from '@/utils/gridLayout'
 import {
@@ -28,9 +34,22 @@ const props = defineProps<{
   /** 블록 색을 무엇으로 정할지. */
   colorMode?: ColorMode
 }>()
+interface Placement {
+  schedule: Schedule
+  day: number
+  start: number
+  end: number
+}
+
 const emit = defineEmits<{
   select: [schedule: Schedule]
   draft: [value: { memberId: number; day: number; start: number; end: number }]
+  /** 있던 일정을 다른 자리로 옮겼다. */
+  move: [value: Placement]
+  /** Ctrl 을 누른 채 옮겨 원본을 두고 하나 더 만든다. */
+  copy: [value: Placement]
+  /** 겹치는 자리에 놓으려 했다. */
+  clash: []
 }>()
 
 const editing = computed(
@@ -200,6 +219,28 @@ let moveGrab = 0
 /** 누르기만 하고 뗀 것인지 알려면, 누를 때 초안이 있었는지 기억해야 한다. */
 let hadDraft = false
 
+/** 지금 잡아 옮기고 있는 기존 일정. 새로 그리는 초안과는 다르다. */
+const moving = ref<Schedule | null>(null)
+/** 옮기는 동안 Ctrl(맥은 Cmd)을 누르고 있으면 원본을 두고 하나 더 만든다. */
+const copying = ref(false)
+/** 제자리에서 뗐으면 옮긴 게 아니라 누른 것이다. */
+let blockMoved = false
+
+/**
+ * 지금 자리가 이미 있는 일정과 부딪히는지.
+ *
+ * 옮기는 중이라면 자기 자신은 빼고 본다 — 제 자리와 겹쳤다고 할 수는 없다.
+ * 복사할 때는 원본도 남으므로 자신까지 센다.
+ */
+const draftClash = computed(() => {
+  const box = draft.value
+  if (box === null || props.editingMemberId == null) {
+    return false
+  }
+  const self = moving.value !== null && !copying.value ? moving.value.id : undefined
+  return clashes(box, props.schedules, props.editingMemberId, self)
+})
+
 /** 열 안에서의 세로 위치를 슬롯 번호로. 줄 높이가 화면마다 달라 비율로 잰다. */
 function slotAt(element: HTMLElement, clientY: number): number {
   const rect = element.getBoundingClientRect()
@@ -236,6 +277,8 @@ function clearDraft() {
   draft.value = null
   draftMode.value = null
   draftPointer = null
+  moving.value = null
+  copying.value = false
 }
 
 /* 빈 칸에서 새로 그리기 */
@@ -324,6 +367,86 @@ function endGrab(event: PointerEvent) {
   }
   draftMode.value = null
   draftPointer = null
+}
+
+/* 있던 일정을 잡아 옮기기 */
+
+/** 수정 중인 본인 일정만 잡을 수 있다. */
+function canGrab(schedule: Schedule): boolean {
+  return editing.value && schedule.member_id === props.editingMemberId
+}
+
+function onBlockDown(event: PointerEvent, schedule: Schedule) {
+  if (!canGrab(schedule) || event.button !== 0) {
+    return
+  }
+  // 뗄 때 여기서 직접 판단한다. 뒤따라 오는 click 은 무시한다.
+  suppressClick = true
+  moving.value = schedule
+  copying.value = event.ctrlKey || event.metaKey
+  blockMoved = false
+  draft.value = {
+    day: schedule.day_of_week,
+    start: schedule.start_slot,
+    end: schedule.end_slot,
+  }
+  draftMode.value = 'moving'
+  draftPointer = event.pointerId
+  const lane = laneAt(event.clientX, event.clientY)
+  moveGrab =
+    lane === null ? 0 : slotAt(lane.el, event.clientY) - schedule.start_slot
+  capture(event)
+  event.preventDefault()
+}
+
+function onBlockMove(event: PointerEvent) {
+  if (draftPointer !== event.pointerId || moving.value === null) {
+    return
+  }
+  // 끄는 도중에 마음을 바꿔도 되도록 뗄 때까지 계속 본다.
+  copying.value = event.ctrlKey || event.metaKey
+  const lane = laneAt(event.clientX, event.clientY)
+  if (lane === null || draft.value === null) {
+    return
+  }
+  const next = moveTo(
+    draft.value,
+    lane.day,
+    slotAt(lane.el, event.clientY) - moveGrab,
+  )
+  if (next.day !== draft.value.day || next.start !== draft.value.start) {
+    blockMoved = true
+  }
+  draft.value = next
+}
+
+function onBlockUp(event: PointerEvent) {
+  if (draftPointer !== event.pointerId || moving.value === null) {
+    return
+  }
+  const schedule = moving.value
+  const box = draft.value
+  const copy = copying.value
+  const moved = blockMoved
+  // 치우고 나면 판정을 다시 할 수 없으니 먼저 읽어 둔다.
+  const bumped = draftClash.value
+  clearDraft()
+
+  if (!moved || box === null) {
+    // 제자리에서 뗐다. 옮긴 게 아니라 누른 것이니 폼을 연다.
+    emit('select', schedule)
+    return
+  }
+  if (bumped) {
+    emit('clash')
+    return
+  }
+  const placed = { schedule, day: box.day, start: box.start, end: box.end }
+  if (copy) {
+    emit('copy', placed)
+  } else {
+    emit('move', placed)
+  }
 }
 
 /** ⊕. 여기서 비로소 폼이 열린다. */
@@ -505,7 +628,7 @@ function span(schedule: Schedule): string {
             v-if="draft && draftColumn !== null"
             ref="draftEl"
             class="draft"
-            :class="{ held: draftMode !== null }"
+            :class="{ held: draftMode !== null, clash: draftClash, copying }"
             :style="{
               gridColumn: draftColumn,
               gridRow: `${rowForSlot(draft.start)} / ${rowForSlot(draft.end)}`,
@@ -517,6 +640,7 @@ function span(schedule: Schedule): string {
           >
             <span class="draft-time">
               {{ slotToTime(draft.start) }}–{{ slotToTime(draft.end) }}
+              <template v-if="copying && moving">· 복사</template>
             </span>
 
             <!-- 위아래 끝은 길이를 고치는 손잡이다. 가운데를 잡으면 옮겨진다. -->
@@ -534,7 +658,17 @@ function span(schedule: Schedule): string {
               type="button"
               class="draft-add"
               :class="{ 'draft-add--flip': draftAtEdge }"
-              aria-label="이 시간으로 일정 만들기"
+              :disabled="draftClash"
+              :title="
+                draftClash
+                  ? '이미 있는 일정과 겹칩니다'
+                  : '이 시간으로 일정 만들기'
+              "
+              :aria-label="
+                draftClash
+                  ? '겹쳐서 일정을 만들 수 없습니다'
+                  : '이 시간으로 일정 만들기'
+              "
               @pointerdown.stop
               @click="openDraftForm"
             >
@@ -549,6 +683,10 @@ function span(schedule: Schedule): string {
             :key="block.schedule.id"
             type="button"
             class="block"
+            :class="{
+              grabbable: canGrab(block.schedule),
+              ghost: moving?.id === block.schedule.id,
+            }"
             :title="tooltip(block.schedule)"
             :style="{
               gridColumn: block.gridColumn,
@@ -556,6 +694,10 @@ function span(schedule: Schedule): string {
               backgroundColor: paint(block.schedule),
               color: textOn(paint(block.schedule)),
             }"
+            @pointerdown="onBlockDown($event, block.schedule)"
+            @pointermove="onBlockMove"
+            @pointerup="onBlockUp"
+            @pointercancel="onBlockUp"
             @click="onBlockClick(block.schedule)"
           >
             <span class="title">{{ block.schedule.title }}</span>
@@ -821,6 +963,43 @@ function span(schedule: Schedule): string {
   stroke: currentcolor;
   stroke-width: 2;
   stroke-linecap: round;
+}
+
+/* 이미 있는 일정과 겹친다. 이대로는 저장할 수 없다.
+   바탕을 비쳐 두어야 무엇과 부딪혔는지 아래로 보인다. */
+.draft.clash {
+  border-color: var(--alarm);
+  background: color-mix(in srgb, var(--alarm) 14%, transparent);
+  color: var(--alarm);
+}
+
+/* Ctrl 을 누르고 있다. 원본을 두고 하나 더 만드는 중이라 실선으로 구분한다. */
+.draft.copying {
+  border-style: solid;
+}
+
+.draft-add:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.draft-add:disabled:hover {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+/* 수정 중인 본인 일정은 잡아서 옮길 수 있다. */
+.block.grabbable {
+  cursor: grab;
+}
+
+.block.grabbable:active {
+  cursor: grabbing;
+}
+
+/* 옮기는 동안 원래 자리를 흐려 어디서 떠나왔는지 남긴다. */
+.block.ghost {
+  opacity: 0.3;
 }
 
 .hour-line {

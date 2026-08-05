@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { SLOT_COUNT } from '@/constants'
-import { fromDrag, moveTo, resizeEnd, resizeStart } from '@/utils/draftBox'
+import {
+  clashes,
+  fromDrag,
+  moveTo,
+  resizeEnd,
+  resizeStart,
+} from '@/utils/draftBox'
 
 /** 09:00~11:00 (슬롯 6부터 4칸). 대부분의 시험에서 출발점으로 쓴다. */
 const BOX = { day: 0, start: 6, end: 10 }
@@ -75,5 +81,58 @@ describe('moveTo', () => {
 
   it('요일만 바꾸고 자리는 그대로 둘 수 있다', () => {
     expect(moveTo(BOX, 6, BOX.start)).toEqual({ day: 6, start: 6, end: 10 })
+  })
+})
+
+describe('clashes', () => {
+  const 화요일_9시부터11시 = {
+    id: 1,
+    member_id: 7,
+    day_of_week: 1,
+    start_slot: 6,
+    end_slot: 10,
+    title: '전공수업',
+    color: '#a9dcb5',
+  }
+
+  it('같은 요일에서 시간이 겹치면 부딪힌다', () => {
+    const box = { day: 1, start: 8, end: 12 }
+    expect(clashes(box, [화요일_9시부터11시], 7)).toBe(true)
+  })
+
+  it('끝나는 칸과 시작하는 칸이 맞닿는 것은 겹침이 아니다', () => {
+    expect(clashes({ day: 1, start: 10, end: 14 }, [화요일_9시부터11시], 7)).toBe(
+      false,
+    )
+    expect(clashes({ day: 1, start: 2, end: 6 }, [화요일_9시부터11시], 7)).toBe(
+      false,
+    )
+  })
+
+  it('요일이 다르면 상관없다', () => {
+    expect(clashes({ day: 2, start: 8, end: 12 }, [화요일_9시부터11시], 7)).toBe(
+      false,
+    )
+  })
+
+  it('다른 사람 일정과는 부딪히지 않는다', () => {
+    expect(clashes({ day: 1, start: 8, end: 12 }, [화요일_9시부터11시], 99)).toBe(
+      false,
+    )
+  })
+
+  it('옮기는 중인 자기 자신은 빼고 본다', () => {
+    const box = { day: 1, start: 7, end: 11 }
+    expect(clashes(box, [화요일_9시부터11시], 7)).toBe(true)
+    expect(clashes(box, [화요일_9시부터11시], 7, 1)).toBe(false)
+  })
+
+  it('완전히 품는 경우도 겹침이다', () => {
+    expect(clashes({ day: 1, start: 4, end: 14 }, [화요일_9시부터11시], 7)).toBe(
+      true,
+    )
+    expect(clashes({ day: 1, start: 7, end: 9 }, [화요일_9시부터11시], 7)).toBe(
+      true,
+    )
   })
 })
