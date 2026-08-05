@@ -57,7 +57,7 @@ async function commitAll() {
 
 <template>
   <aside class="side" :class="{ folded: store.sideFolded }">
-    <!-- 표와 이름 목록을 가르는 선 위에 걸터앉는다. 접으면 이 손잡이만 남는다. -->
+    <!-- 목록 오른쪽 위. 접으면 가르는 선 옆으로 나와 펴는 손잡이가 된다. -->
     <button
       type="button"
       class="fold"
@@ -66,19 +66,7 @@ async function commitAll() {
       :aria-expanded="!store.sideFolded"
       @click="store.toggleSide()"
     >
-      <svg
-        viewBox="0 0 16 16"
-        width="12"
-        height="12"
-        fill="none"
-        stroke="currentColor"
-        stroke-width="1.7"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        aria-hidden="true"
-      >
-        <path :d="store.sideFolded ? 'M6 3.5 10.5 8 6 12.5' : 'M10 3.5 5.5 8 10 12.5'" />
-      </svg>
+      {{ store.sideFolded ? '»' : '«' }}
     </button>
 
     <div class="scroll">
@@ -162,29 +150,32 @@ async function commitAll() {
   display: none;
 }
 
-/* 세로 가운데가 아니라 고정 높이다. 접으면 목록이 사라져 이 칸의 높이가
-   달라지는데, 가운데에 매달아 두면 접을 때마다 손잡이가 튄다. */
+/* 상자를 두르지 않는다. 첫 카테고리 이름과 같은 줄에 글자로만 선다. */
 .fold {
   position: absolute;
-  top: 96px;
-  right: -11px;
+  top: 0;
+  right: 0;
   z-index: 5;
-  display: grid;
-  place-items: center;
-  width: 21px;
-  height: 34px;
-  padding: 0;
-  border: 1px solid var(--rule);
-  border-radius: 6px;
-  background: var(--paper);
+  padding: 0 2px;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  letter-spacing: -0.06em;
   color: var(--mute);
   cursor: pointer;
-  transition: color 110ms ease, border-color 110ms ease;
+  transition: color 110ms ease;
 }
 
 .fold:hover {
-  border-color: var(--rule-strong);
   color: var(--ink);
+}
+
+/* 접으면 이 칸의 폭이 0 이라, 가르는 선 오른쪽 여백으로 나와야 보인다. */
+.side.folded .fold {
+  right: auto;
+  left: 3px;
 }
 
 .scroll {
