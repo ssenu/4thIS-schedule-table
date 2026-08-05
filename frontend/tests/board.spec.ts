@@ -1,6 +1,7 @@
 import { createPinia, setActivePinia } from 'pinia'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { orderMembers, useBoardStore } from '@/stores/board'
+import { DEFAULT_GATE_INTRO, DEFAULT_GATE_TITLE } from '@/constants'
 import type { Category, Member, Schedule } from '@/types'
 
 const CATEGORIES: Category[] = [
@@ -304,5 +305,48 @@ describe('관리자가 입장 비밀번호를 바꿀 때', () => {
     store.gateOpen = true
     store.adoptGatePassword('new-gate')
     expect(store.gateOpen).toBe(true)
+  })
+})
+
+describe('첫 화면 문구', () => {
+  function stubGate(body: { title: string; intro: string }) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        headers: { get: () => null },
+        text: () => Promise.resolve(JSON.stringify(body)),
+      }),
+    )
+  }
+
+  it('서버에서 받기 전에는 문구가 비어 있다', () => {
+    const store = useBoardStore()
+    expect(store.gateLoaded).toBe(false)
+    expect(store.gateTitle).toBe('')
+    expect(store.gateIntro).toBe('')
+  })
+
+  it('받아 오면 서버가 준 문구를 쓴다', async () => {
+    stubGate({ title: '4기 시간표', intro: '단톡방 공지를 보세요' })
+    const store = useBoardStore()
+
+    await store.loadGate()
+
+    expect(store.gateLoaded).toBe(true)
+    expect(store.gateTitle).toBe('4기 시간표')
+    expect(store.gateIntro).toBe('단톡방 공지를 보세요')
+  })
+
+  it('못 받아 오면 기본 문구를 채워 빈 화면을 남기지 않는다', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('offline')))
+    const store = useBoardStore()
+
+    await store.loadGate()
+
+    expect(store.gateLoaded).toBe(true)
+    expect(store.gateTitle).toBe(DEFAULT_GATE_TITLE)
+    expect(store.gateIntro).toBe(DEFAULT_GATE_INTRO)
   })
 })

@@ -176,9 +176,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <GateScreen v-if="!store.gateOpen" />
+  <!--
+    문구를 받기 전에는 첫 화면을 그리지 않는다. 기본 문구로 먼저 그리면
+    관리자가 고쳐 둔 문구로 바뀌면서 눈에 띄게 깜빡인다.
+  -->
+  <GateScreen v-if="!store.gateOpen && store.gateLoaded" />
 
-  <div v-else class="shell">
+  <div v-else-if="store.gateOpen" class="shell">
     <header class="bar">
       <h1>동아리 주간 시간표</h1>
       <span class="sub">매주 반복되는 일정만</span>

@@ -34,6 +34,13 @@ interface BoardState {
   adminPassword: string
   /** 입장 비밀번호를 넣고 사이트 안에 들어와 있는지. */
   gateOpen: boolean
+  /**
+   * 첫 화면 문구를 서버에서 받아 왔는지.
+   *
+   * 받기 전에 기본 문구로 화면을 그리면, 관리자가 문구를 고쳐 둔 경우
+   * 기본 문구가 잠깐 떴다가 바뀌어 깜빡인다. 받을 때까지 그리지 않는다.
+   */
+  gateLoaded: boolean
   gateTitle: string
   gateIntro: string
   /** 유일하게 브라우저에 남기는 비밀번호. 개인·관리자 것은 남기지 않는다. */
@@ -60,8 +67,10 @@ export const useBoardStore = defineStore('board', {
     unlocked: {},
     adminPassword: '',
     gateOpen: false,
-    gateTitle: DEFAULT_GATE_TITLE,
-    gateIntro: DEFAULT_GATE_INTRO,
+    gateLoaded: false,
+    // 진짜 문구는 서버에 있다. 여기서 흉내 내면 두 번 그려진다.
+    gateTitle: '',
+    gateIntro: '',
     gatePassword: '',
     colorMode: 'own',
     error: '',
@@ -151,7 +160,12 @@ export const useBoardStore = defineStore('board', {
         this.gateTitle = gate.title
         this.gateIntro = gate.intro
       } catch {
-        // 문구를 못 받아도 첫 화면은 기본 문구로 뜬다.
+        // 문구를 못 받아도 첫 화면은 떠야 한다. 비워 두면 비밀번호를
+        // 넣을 칸조차 없이 빈 화면에 갇힌다.
+        this.gateTitle = DEFAULT_GATE_TITLE
+        this.gateIntro = DEFAULT_GATE_INTRO
+      } finally {
+        this.gateLoaded = true
       }
     },
 
