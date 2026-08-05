@@ -141,6 +141,7 @@ async function remove() {
         <input
           v-model="password"
           class="input"
+          type="password"
           inputmode="numeric"
           maxlength="4"
           :placeholder="mode === 'create' ? '숫자 4자리' : '바꿀 때만 채우세요'"

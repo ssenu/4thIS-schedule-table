@@ -47,6 +47,8 @@ interface BoardState {
   gatePassword: string
   /** 블록 색을 무엇으로 정할지. 보기 설정이라 브라우저에 남긴다. */
   colorMode: ColorMode
+  /** 왼쪽 이름 목록을 접어 두었는지. 이것도 보기 설정이라 남긴다. */
+  sideFolded: boolean
   error: string
   loading: boolean
 }
@@ -55,6 +57,7 @@ interface BoardState {
 interface Persisted {
   selectedIds?: number[]
   colorMode?: ColorMode
+  sideFolded?: boolean
   gatePassword?: string
 }
 
@@ -73,6 +76,7 @@ export const useBoardStore = defineStore('board', {
     gateIntro: '',
     gatePassword: '',
     colorMode: 'own',
+    sideFolded: false,
     error: '',
     loading: false,
   }),
@@ -254,6 +258,12 @@ export const useBoardStore = defineStore('board', {
       this.persist()
     },
 
+    /** 왼쪽 이름 목록을 접었다 편다. 접으면 표가 그만큼 넓어진다. */
+    toggleSide() {
+      this.sideFolded = !this.sideFolded
+      this.persist()
+    },
+
     reportError(err: unknown) {
       this.error =
         err instanceof ApiError ? err.message : '알 수 없는 오류가 발생했습니다.'
@@ -263,6 +273,7 @@ export const useBoardStore = defineStore('board', {
       const payload: Persisted = {
         selectedIds: this.selectedIds,
         colorMode: this.colorMode,
+        sideFolded: this.sideFolded,
         gatePassword: this.gatePassword,
       }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
@@ -277,6 +288,7 @@ export const useBoardStore = defineStore('board', {
         const saved = JSON.parse(raw) as Persisted
         this.selectedIds = saved.selectedIds ?? []
         this.colorMode = saved.colorMode ?? 'own'
+        this.sideFolded = saved.sideFolded ?? false
         this.gatePassword = saved.gatePassword ?? ''
         setGatePassword(this.gatePassword)
         // 저장된 비밀번호가 맞는지는 첫 요청이 알려 준다. 맞으면 화면이

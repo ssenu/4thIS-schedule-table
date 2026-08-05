@@ -61,7 +61,7 @@ async function submit() {
         <input
           v-model="password"
           class="input"
-          :type="mode === 'admin' ? 'password' : 'text'"
+          type="password"
           :inputmode="mode === 'admin' ? undefined : 'numeric'"
           :maxlength="mode === 'admin' ? undefined : 4"
           :placeholder="mode === 'admin' ? '관리자 비밀번호' : '숫자 4자리'"

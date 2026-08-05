@@ -234,7 +234,7 @@ onUnmounted(() => {
   <div v-else-if="store.gateOpen" class="shell">
     <header class="bar">
       <h1>동아리 주간 시간표</h1>
-      <span class="sub">매주 반복되는 일정만</span>
+      <span class="sub">명지전문대학 4thIS 동아리원 시간표</span>
 
       <span class="spacer" />
 
@@ -272,13 +272,6 @@ onUnmounted(() => {
       <template v-else>
         <button
           type="button"
-          class="btn"
-          @click="memberDialog = { mode: 'create' }"
-        >
-          이름 등록
-        </button>
-        <button
-          type="button"
           class="btn btn--icon"
           :title="`색 기준: ${colorLabel} — 누르면 ${nextColorLabel}`"
           :aria-label="`색 기준 ${colorLabel}, 눌러서 ${nextColorLabel}로`"
@@ -290,6 +283,13 @@ onUnmounted(() => {
             <circle cx="10.4" cy="8" r="3.4" fill="currentColor" opacity="0.85" />
           </svg>
           {{ colorLabel }}
+        </button>
+        <button
+          type="button"
+          class="btn"
+          @click="memberDialog = { mode: 'create' }"
+        >
+          이름 등록
         </button>
         <button
           type="button"
