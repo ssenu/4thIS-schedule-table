@@ -145,10 +145,11 @@ async function commitAll() {
   border-right: 1px solid var(--rule);
 }
 
-/* 접으면 가르는 선 한 줄만 남고, 표가 그 폭을 가져간다. */
+/* 접으면 화살표 한 개 폭만 남기고 나머지를 표에 내준다.
+   폭을 0 으로 두면 화살표가 칸 밖으로 나가 표 테두리를 밟는다. */
 .side.folded {
-  width: 0;
-  flex: 0 0 0;
+  width: 24px;
+  flex: 0 0 24px;
   padding: 0;
 }
 
@@ -189,10 +190,10 @@ async function commitAll() {
   color: var(--ink);
 }
 
-/* 접으면 이 칸의 폭이 0 이라, 가르는 선 오른쪽 여백으로 나와야 보인다. */
+/* 접힌 칸 안에 자리를 잡는다. 오른쪽 여백은 .body 의 gap 이 만들어 준다. */
 .side.folded .fold {
   right: auto;
-  left: 3px;
+  left: 0;
 }
 
 .scroll {
