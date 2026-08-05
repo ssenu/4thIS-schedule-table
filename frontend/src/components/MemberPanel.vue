@@ -66,7 +66,15 @@ async function commitAll() {
       :aria-expanded="!store.sideFolded"
       @click="store.toggleSide()"
     >
-      {{ store.sideFolded ? '»' : '«' }}
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path
+          :d="
+            store.sideFolded
+              ? 'M7 4.5 12.5 10 7 15.5M12.5 4.5 18 10l-5.5 5.5'
+              : 'M13 4.5 7.5 10l5.5 5.5M7.5 4.5 2 10l5.5 5.5'
+          "
+        />
+      </svg>
     </button>
 
     <div class="scroll">
@@ -150,22 +158,31 @@ async function commitAll() {
   display: none;
 }
 
-/* 상자를 두르지 않는다. 첫 카테고리 이름과 같은 줄에 글자로만 선다. */
+/* 상자를 두르지 않는다. 첫 카테고리 이름과 같은 줄에 겹화살표만 선다.
+   « 글자를 쓰면 글리프가 작게 그려져, 획을 직접 그린다. */
 .fold {
   position: absolute;
-  top: 0;
-  right: 0;
+  top: -4px;
+  right: -2px;
   z-index: 5;
-  padding: 0 2px;
+  display: grid;
+  place-items: center;
+  padding: 2px;
   border: 0;
   background: none;
-  font: inherit;
-  font-size: 13px;
-  line-height: 1;
-  letter-spacing: -0.06em;
   color: var(--mute);
   cursor: pointer;
   transition: color 110ms ease;
+}
+
+.fold svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 1.9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .fold:hover {
