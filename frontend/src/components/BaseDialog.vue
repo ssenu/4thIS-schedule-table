@@ -34,6 +34,7 @@ const emit = defineEmits<{ close: [] }>()
   justify-content: center;
   padding: 20px;
   background: rgb(23 24 28 / 38%);
+  animation: veil-in 150ms ease both;
 }
 
 .panel {
@@ -41,9 +42,32 @@ const emit = defineEmits<{ close: [] }>()
   max-height: 88vh;
   overflow: auto;
   background: var(--paper);
-  border: 1px solid var(--rule-strong);
-  border-radius: 6px;
+  border: 1px solid rgb(23 24 28 / 16%);
+  border-radius: 11px;
   box-shadow: 0 18px 44px rgb(23 24 28 / 18%);
+  /* 뒷막보다 조금 늦게, 조금 길게 — 판이 뒤에서 올라오는 것으로 읽힌다. */
+  animation: panel-in 220ms cubic-bezier(0.2, 0.85, 0.25, 1) both;
+}
+
+@keyframes veil-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+/* 움직임을 줄여 달라고 한 사람에게는 그냥 나타난다. */
+@media (prefers-reduced-motion: reduce) {
+  .veil,
+  .panel {
+    animation: none;
+  }
 }
 
 .panel.wide {
