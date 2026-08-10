@@ -80,7 +80,10 @@ async function commitAll() {
       </svg>
     </button>
 
-    <div class="scroll">
+    <!-- 접힐 때 이 안쪽은 폭을 그대로 두고 잘려 나간다. 같이 좁아지면
+         이름 칸이 찌그러지면서 접히는 것이 아니라 뭉개져 보인다. -->
+    <div class="inner">
+      <div class="scroll">
       <section
         v-for="category in store.sortedCategories"
         :key="category.id"
@@ -120,33 +123,44 @@ async function commitAll() {
           </template>
         </draggable>
       </section>
-    </div>
-
-    <div class="foot">
-      <!-- 짝을 이루는 두 동작이라 한 덩어리로 묶는다. -->
-      <div class="seg">
-        <button type="button" class="seg-btn" @click="store.selectAll()">
-          전체
-        </button>
-        <button type="button" class="seg-btn" @click="store.clearSelection()">
-          해제
-        </button>
       </div>
-      <span class="count">{{ store.selectedIds.length }}명 보는 중</span>
-    </div>
 
-    <p class="admin-hint">끌어서 순서와 소속을 바꿉니다</p>
+      <div class="foot">
+        <!-- 짝을 이루는 두 동작이라 한 덩어리로 묶는다. -->
+        <div class="seg">
+          <button type="button" class="seg-btn" @click="store.selectAll()">
+            전체
+          </button>
+          <button type="button" class="seg-btn" @click="store.clearSelection()">
+            해제
+          </button>
+        </div>
+        <span class="count">{{ store.selectedIds.length }}명 보는 중</span>
+      </div>
+
+      <p class="admin-hint">끌어서 순서와 소속을 바꿉니다</p>
+    </div>
   </aside>
 </template>
 
 <style scoped>
 .side {
   position: relative;
+  width: 240px;
+  flex: 0 0 240px;
+  overflow: hidden;
+  border-right: 1px solid var(--rule);
+  transition: width 300ms cubic-bezier(0.4, 0, 0.2, 1),
+    flex-basis 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* 접히는 동안에도 안쪽은 제 폭을 지키고 잘려 나간다. 같이 좁아지면
+   이름 칸이 찌그러지면서 접히는 게 아니라 뭉개져 보인다. */
+.inner {
   display: flex;
   flex-direction: column;
   width: 240px;
-  flex: 0 0 240px;
-  border-right: 1px solid var(--rule);
+  transition: opacity 200ms ease;
 }
 
 /* 접으면 화살표 한 개 폭만 남기고 나머지를 표에 내준다.
@@ -154,21 +168,21 @@ async function commitAll() {
 .side.folded {
   width: 24px;
   flex: 0 0 24px;
-  padding: 0;
 }
 
-.side.folded .scroll,
-.side.folded .foot,
-.side.folded .admin-hint {
-  display: none;
+.side.folded .inner {
+  opacity: 0;
+  pointer-events: none;
 }
 
 /* 상자를 두르지 않는다. 첫 카테고리 이름과 같은 줄에 겹화살표만 선다.
    « 글자를 쓰면 글리프가 작게 그려져, 획을 직접 그린다. */
+/* 오른쪽 끝에 붙여 두면 칸이 좁아질 때 따로 옮기지 않아도 함께 밀려온다 —
+   접힌 24px 칸에서는 이 자리가 곧 왼쪽 끝이다. */
 .fold {
   position: absolute;
-  top: -4px;
-  right: -2px;
+  top: 0;
+  right: 2px;
   z-index: 5;
   display: grid;
   place-items: center;
@@ -192,12 +206,6 @@ async function commitAll() {
 
 .fold:hover {
   color: var(--ink);
-}
-
-/* 접힌 칸 안에 자리를 잡는다. 오른쪽 여백은 .body 의 gap 이 만들어 준다. */
-.side.folded .fold {
-  right: auto;
-  left: 0;
 }
 
 .scroll {
@@ -371,16 +379,13 @@ h2 {
     flex: none;
   }
 
-  .side.folded .scroll {
-    display: block;
+  .inner {
+    width: 100%;
   }
 
-  .side.folded .foot {
-    display: flex;
-  }
-
-  .side.folded .admin-hint {
-    display: block;
+  .side.folded .inner {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .scroll {
