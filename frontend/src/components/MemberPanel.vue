@@ -10,6 +10,8 @@ const store = useBoardStore()
 /** 드래그는 배열을 직접 뒤집으므로 스토어가 아닌 사본 위에서 다룬다. */
 const groups = ref<Record<number, Member[]>>({})
 const saving = ref(false)
+/** 끌고 있는 동안만 놓을 수 있는 자리를 옅게 드러낸다. */
+const dragging = ref(false)
 
 function rebuild() {
   const next: Record<number, Member[]> = {}
@@ -29,7 +31,8 @@ watch(() => [store.categories, store.members], rebuild, {
  * 순서 API는 그 카테고리의 전체 멤버 집합을 요구하므로 순서가 뒤바뀌면 안 된다.
  */
 async function commitAll() {
-  if (!store.isAdmin || saving.value) {
+  dragging.value = false
+  if (saving.value) {
     return
   }
   saving.value = true
@@ -56,7 +59,7 @@ async function commitAll() {
 </script>
 
 <template>
-  <aside class="side" :class="{ folded: store.sideFolded }">
+  <aside class="side" :class="{ folded: store.sideFolded, dragging }">
     <!-- 목록 오른쪽 위. 접으면 가르는 선 옆으로 나와 펴는 손잡이가 된다. -->
     <button
       type="button"
@@ -90,17 +93,20 @@ async function commitAll() {
           class="names"
           group="members"
           item-key="id"
-          :disabled="!store.isAdmin"
+          :animation="180"
+          :force-fallback="true"
+          :fallback-on-body="true"
+          ghost-class="ghost"
+          chosen-class="chosen"
+          drag-class="flying"
+          @start="dragging = true"
           @end="commitAll"
         >
           <template #item="{ element }">
             <button
               type="button"
               class="name"
-              :class="{
-                on: store.selectedIds.includes(element.id),
-                grab: store.isAdmin,
-              }"
+              :class="{ on: store.selectedIds.includes(element.id) }"
               :title="element.name"
               @click="store.toggleSelection(element.id)"
             >
@@ -129,9 +135,7 @@ async function commitAll() {
       <span class="count">{{ store.selectedIds.length }}명 보는 중</span>
     </div>
 
-    <p v-if="store.isAdmin" class="admin-hint">
-      끌어서 순서와 소속을 바꿉니다
-    </p>
+    <p class="admin-hint">끌어서 순서와 소속을 바꿉니다</p>
   </aside>
 </template>
 
@@ -236,7 +240,7 @@ h2 {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  cursor: pointer;
+  cursor: grab;
   transition: background 110ms ease, color 110ms ease, border-color 110ms ease;
 }
 
@@ -251,8 +255,37 @@ h2 {
   color: var(--paper);
 }
 
-.name.grab {
-  cursor: grab;
+/* ── 끌어 옮기는 동안 ─────────────────────────────────────────
+   Sortable 이 세 요소에 각각 클래스를 붙인다. 자리를 비켜 주는
+   움직임(animation)과 함께, 무엇을 들었고 어디에 놓이는지 보인다. */
+
+/* 놓일 자리. 이름을 남겨 무엇이 그 자리에 들어가는지 알린다.
+   바탕을 옅게 칠하고 테두리를 진한 점선으로 둬야 목록 안에서 도드라진다. */
+.name.ghost {
+  background: color-mix(in srgb, var(--ink) 7%, var(--paper));
+  border: 1.5px dashed var(--ink-soft);
+  color: var(--ink-soft);
+}
+
+.name.chosen {
+  cursor: grabbing;
+}
+
+/* 손끝을 따라다니는 쪽. 종이에서 떠오른 만큼 그림자를 준다.
+   이 복제본은 body 바로 아래에 붙으므로 부모를 앞세운 선택자로는 잡히지 않는다. */
+.name.flying {
+  border-color: var(--ink-soft);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: 0 10px 22px rgb(23 24 28 / 22%);
+  opacity: 1;
+}
+
+/* 끄는 동안에만 놓을 수 있는 칸을 옅게 두른다. 빈 학년도 자리로 보인다. */
+.side.dragging .names {
+  outline: 1px dashed var(--rule);
+  outline-offset: 5px;
+  border-radius: 4px;
 }
 
 .none {

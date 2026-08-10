@@ -82,16 +82,30 @@ def test_self_can_change_password(client, make_member):
     assert again.status_code == 200
 
 
-def test_self_cannot_move_category(client, make_member, conn):
-    member_id, headers = make_member("철수")
+def test_anyone_can_move_category(client, make_member, conn):
+    """소속은 목록을 정리하는 일이라 자격 없이도 옮긴다."""
+    member_id, _ = make_member("철수")
+    other = conn.execute(
+        "SELECT id FROM categories ORDER BY sort_order DESC LIMIT 1"
+    ).fetchone()["id"]
+    response = client.patch(f"/api/members/{member_id}", json={"category_id": other})
+    assert response.status_code == 200
+    assert response.json()["category_id"] == other
+
+
+def test_moving_category_does_not_smuggle_a_rename(client, make_member, conn):
+    """소속이 열렸다고 이름까지 딸려 들어가면 안 된다."""
+    member_id, _ = make_member("철수")
     other = conn.execute(
         "SELECT id FROM categories ORDER BY sort_order DESC LIMIT 1"
     ).fetchone()["id"]
     response = client.patch(
-        f"/api/members/{member_id}", json={"category_id": other}, headers=headers
+        f"/api/members/{member_id}",
+        json={"category_id": other, "name": "몰래바꾼이름"},
     )
     assert response.status_code == 403
-    assert "관리자" in response.json()["detail"]
+    names = [m["name"] for m in client.get("/api/board").json()["members"]]
+    assert names == ["철수"]
 
 
 def test_admin_can_move_category(client, make_member, admin_headers, conn):
@@ -145,15 +159,17 @@ def test_admin_reorders_members(client, make_member, admin_headers, category_id)
     assert order == [second_id, first_id]
 
 
-def test_member_cannot_reorder(client, make_member, category_id):
-    first_id, headers = make_member("가")
+def test_anyone_can_reorder(client, make_member, category_id):
+    """순서도 보기 좋게 놓는 일이라 자격을 묻지 않는다."""
+    first_id, _ = make_member("가")
     second_id, _ = make_member("나")
     response = client.put(
         "/api/members/order",
         json={"category_id": category_id, "ordered_ids": [second_id, first_id]},
-        headers=headers,
     )
-    assert response.status_code == 403
+    assert response.status_code == 200
+    order = [m["id"] for m in client.get("/api/board").json()["members"]]
+    assert order == [second_id, first_id]
 
 
 def test_reorder_rejects_mismatched_ids(

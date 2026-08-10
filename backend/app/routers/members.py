@@ -7,11 +7,10 @@ from fastapi import APIRouter, Depends, Response
 from app.auth import (
     Actor,
     hash_password,
-    require_admin,
     require_self_or_admin,
     resolve_actor,
 )
-from app.errors import Conflict, DomainError, Forbidden, NotFound
+from app.errors import Conflict, DomainError, NotFound
 from app.routers.board import get_conn
 from app.schemas import MemberCreate, MemberOrderIn, MemberOut, MemberUpdate
 
@@ -71,10 +70,11 @@ def update_member(
     conn: sqlite3.Connection = Depends(get_conn),
 ) -> MemberOut:
     _fetch(conn, member_id)
-    require_self_or_admin(actor, member_id)
 
-    if payload.category_id is not None and not actor.is_admin:
-        raise Forbidden("소속 변경은 관리자에게 요청해 주세요.")
+    # 권한은 고치는 항목마다 다르다. 이름과 비밀번호는 그 사람의 것이라
+    # 본인이나 관리자만 손대지만, 소속은 목록을 정리하는 일이라 누구나 옮긴다.
+    if payload.name is not None or payload.password is not None:
+        require_self_or_admin(actor, member_id)
 
     if payload.name is not None:
         try:
@@ -119,8 +119,11 @@ def reorder_members(
     actor: Actor = Depends(resolve_actor),
     conn: sqlite3.Connection = Depends(get_conn),
 ) -> dict:
-    """이름 순서는 표의 배치라서 관리자 전용이다."""
-    require_admin(actor)
+    """순서는 목록을 보기 좋게 놓는 일이라 누구나 바꾼다.
+
+    되돌리기도 끌어다 놓으면 그만이고, 입장 비밀번호를 아는 사람만
+    여기까지 들어온다.
+    """
     _require_category(conn, payload.category_id)
     rows = conn.execute(
         "SELECT id FROM members WHERE category_id = ?", (payload.category_id,)
