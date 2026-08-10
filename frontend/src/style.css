@@ -15,8 +15,8 @@
   --alarm-wash: #fbeae8;
   --warn-wash: #f6efd8;
 
-  /* 위쪽 띠. 종이와 바탕 사이에 두어 있는 줄은 알겠으되 눈에 걸리지는 않는다. */
-  --nav: #f5f3ee;
+  /* 본문 바탕. 위쪽 띠(--wash)보다 밝아서 표가 놓인 자리가 앞으로 나온다. */
+  --page: #f5f3ee;
 
   --slot-h: 20px;
   --ruler-w: 46px;
@@ -37,7 +37,7 @@
 
 body {
   margin: 0;
-  background: var(--wash);
+  background: var(--page);
   font-size: 13px;
 }
 

@@ -425,7 +425,7 @@ onUnmounted(() => {
    표와 같은 폭으로 가운데를 맞춘다. */
 .nav {
   flex: none;
-  background: var(--nav);
+  background: var(--wash);
   border-bottom: 1px solid var(--rule);
 }
 
