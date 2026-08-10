@@ -292,30 +292,33 @@ onUnmounted(() => {
           이름 등록
         </button>
         <!-- 한 사람만 골랐을 때만 나온다. 둘 이상이면 누구 걸 고치는지 알 수
-             없어 눌러도 소용이 없으니, 잠긴 채 남겨 두기보다 물러난다. -->
-        <button
-          v-if="selectedOne !== null"
-          type="button"
-          class="btn btn--icon"
-          :title="editHint"
-          @click="startEditing"
-        >
-          <svg
-            viewBox="0 0 16 16"
-            width="14"
-            height="14"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.4"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
+             없어 눌러도 소용이 없으니, 잠긴 채 남겨 두기보다 물러난다.
+             들고 날 때 폭까지 함께 접혀야 옆 버튼이 튀지 않는다. -->
+        <Transition name="pop">
+          <button
+            v-if="selectedOne !== null"
+            type="button"
+            class="btn btn--icon"
+            :title="editHint"
+            @click="startEditing"
           >
-            <path d="M11.3 2.2 13.8 4.7 5.5 13 2.2 13.8 3 10.5Z" />
-            <path d="M10.1 3.4 12.6 5.9" />
-          </svg>
-          수정
-        </button>
+            <svg
+              viewBox="0 0 16 16"
+              width="14"
+              height="14"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.4"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M11.3 2.2 13.8 4.7 5.5 13 2.2 13.8 3 10.5Z" />
+              <path d="M10.1 3.4 12.6 5.9" />
+            </svg>
+            수정
+          </button>
+        </Transition>
       </div>
       </Transition>
 
@@ -497,9 +500,34 @@ h1 {
   transform: translateX(-8px);
 }
 
+/* 버튼 하나가 줄 안에서 들고 난다. 투명도만 바꾸면 자리는 그대로 비어 있다가
+   툭 닫히므로, 폭과 안팎 여백까지 함께 접는다. max-width 는 전환에 쓸 목표값이
+   있어야 해서 넉넉히 잡아 둔 것이고, 끝나면 풀린다.
+   gap 은 접히지 않으니 음수 마진으로 상쇄한다. */
+.pop-enter-active,
+.pop-leave-active {
+  overflow: hidden;
+  max-width: 140px;
+  white-space: nowrap;
+  transition: opacity 150ms ease, transform 150ms ease, max-width 180ms ease,
+    padding 180ms ease, margin 180ms ease;
+}
+
+.pop-enter-from,
+.pop-leave-to {
+  opacity: 0;
+  transform: scale(0.92);
+  max-width: 0;
+  padding-right: 0;
+  padding-left: 0;
+  margin-left: -8px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tools-enter-active,
-  .tools-leave-active {
+  .tools-leave-active,
+  .pop-enter-active,
+  .pop-leave-active {
     transition: none;
   }
 }
