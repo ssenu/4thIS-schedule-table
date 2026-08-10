@@ -139,13 +139,22 @@ interface Placement {
  *
  * 폼으로 한 번 더 확인받지 않는다 — 이미 있는 일정을 옮기는 것이고,
  * 마음에 들지 않으면 다시 잡아 옮기면 된다.
+ *
+ * 화면은 먼저 옮겨 놓고 서버에는 뒤에서 알린다. 쓰기 요청이 비밀번호를
+ * bcrypt 로 확인하느라 0.6초쯤 걸리는데, 그걸 기다리면 놓은 블록이
+ * 제자리에 머물다 뒤늦게 건너뛴다. 서버가 거절하면 그때 되돌린다.
+ *
+ * 끝나고 표 전체를 다시 읽지 않는다. 응답이 이미 확정된 일정을 주고,
+ * 남의 변경은 15초마다 도는 폴링이 가져온다.
  */
 async function place(v: Placement, duplicate: boolean) {
   const creds = store.credentialsFor(v.schedule.member_id)
   const where = { day_of_week: v.day, start_slot: v.start, end_slot: v.end }
-  try {
-    if (duplicate) {
-      await api.createSchedule(
+
+  if (duplicate) {
+    // 복사본의 id 는 서버가 정하므로 미리 그려 둘 수 없다.
+    try {
+      const made = await api.createSchedule(
         {
           member_id: v.schedule.member_id,
           title: v.schedule.title,
@@ -154,11 +163,24 @@ async function place(v: Placement, duplicate: boolean) {
         },
         creds,
       )
-    } else {
-      await api.updateSchedule(v.schedule.id, where, creds)
+      store.adoptSchedule(made)
+    } catch (err) {
+      store.reportError(err)
     }
-    await store.fetchBoard()
+    return
+  }
+
+  // 되돌릴 자리를 먼저 챙긴다 — 아래에서 원본을 그대로 고치기 때문이다.
+  const before = {
+    day_of_week: v.schedule.day_of_week,
+    start_slot: v.schedule.start_slot,
+    end_slot: v.schedule.end_slot,
+  }
+  store.placeSchedule(v.schedule.id, where)
+  try {
+    store.adoptSchedule(await api.updateSchedule(v.schedule.id, where, creds))
   } catch (err) {
+    store.placeSchedule(v.schedule.id, before)
     store.reportError(err)
   }
 }

@@ -205,6 +205,33 @@ export const useBoardStore = defineStore('board', {
       this.persist()
     },
 
+    /**
+     * 서버 답을 기다리지 않고 일정을 그 자리에 옮겨 놓는다.
+     *
+     * 쓰기 요청은 비밀번호를 bcrypt 로 확인하느라 0.6초쯤 걸린다. 그동안
+     * 기다리면 놓은 블록이 제자리에 머물다 뒤늦게 건너뛴다. 먼저 옮겨
+     * 놓고, 서버가 거절하면 그때 되돌린다.
+     */
+    placeSchedule(
+      id: number,
+      where: { day_of_week: number; start_slot: number; end_slot: number },
+    ) {
+      const found = this.schedules.find((s) => s.id === id)
+      if (found) {
+        Object.assign(found, where)
+      }
+    },
+
+    /** 서버가 확정해 준 모습으로 갈아 끼운다. 없던 것이면 새로 넣는다. */
+    adoptSchedule(next: Schedule) {
+      const at = this.schedules.findIndex((s) => s.id === next.id)
+      if (at >= 0) {
+        this.schedules[at] = next
+      } else {
+        this.schedules.push(next)
+      }
+    },
+
     toggleSelection(id: number) {
       const at = this.selectedIds.indexOf(id)
       if (at >= 0) {
