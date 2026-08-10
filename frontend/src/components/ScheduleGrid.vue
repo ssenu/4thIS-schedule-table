@@ -112,7 +112,11 @@ let suppressClick = false
 
 function onPointerDown(event: PointerEvent) {
   // 수정 중에는 끄는 동작이 일정 만들기다. 페이지는 화살표와 방향키로 넘긴다.
-  if (editing.value || pages.value.length < 2 || event.button !== 0) {
+  //
+  // 한 화면에 이레가 다 들어와 넘길 곳이 없어도 끌리게 둔다. 손을 대면
+  // 표가 저항하며 조금 밀렸다가 제자리로 돌아오는데, 그것이 "여기서 끝"
+  // 이라는 대답이다. 아예 꿈쩍하지 않으면 고장인지 끝인지 알 수 없다.
+  if (editing.value || event.button !== 0) {
     return
   }
   activePointer = event.pointerId
@@ -546,7 +550,7 @@ function span(schedule: Schedule): string {
     <template v-else>
       <div
         class="sheet"
-        :class="{ pageable: pages.length > 1, dragging }"
+        :class="{ pageable: !editing, dragging }"
         tabindex="0"
         role="group"
         :aria-label="
@@ -766,6 +770,7 @@ function span(schedule: Schedule): string {
   touch-action: pan-y;
 }
 
+/* 넘길 페이지가 없어도 잡히는 것은 마찬가지다 — 끌면 저항하며 되돌아온다. */
 .sheet.pageable {
   cursor: grab;
 }
