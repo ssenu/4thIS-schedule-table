@@ -768,6 +768,15 @@ function span(schedule: Schedule): string {
   border: 1px solid var(--rule-strong);
   border-radius: 6px;
   touch-action: pan-y;
+  /* 이름을 처음 고르면 표가 아래에서 살짝 올라오며 자리를 잡는다. */
+  animation: sheet-in 240ms ease both;
+}
+
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
 }
 
 /* 넘길 페이지가 없어도 잡히는 것은 마찬가지다 — 끌면 저항하며 되돌아온다. */
@@ -1017,6 +1026,11 @@ function span(schedule: Schedule): string {
  * 몇 칸을 차지하든 블록은 하나. 제목은 그 안에 한 번만 들어가고,
  * 시작 시각과 붙어 보이도록 위쪽에 정렬한다.
  */
+/*
+ * 새로 나타나는 것만 떠오른다. 열쇠(key)가 일정 id 라서 이미 있던 블록은
+ * 다시 그려져도 애니메이션이 돌지 않는다 — 15초마다 도는 폴링에 표 전체가
+ * 깜빡이면 안 된다. 이름을 더 고르면 그 사람 열의 블록만 새로 뜬다.
+ */
 .block {
   z-index: 1;
   margin: 0 2px 1px 1px;
@@ -1031,6 +1045,22 @@ function span(schedule: Schedule): string {
   box-shadow: inset 0 0 0 1px rgb(23 24 28 / 10%);
   text-align: left;
   transition: filter 120ms ease;
+  animation: block-in 220ms ease both;
+}
+
+@keyframes block-in {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+/* 움직임을 줄여 달라고 한 사람에게는 그냥 나타난다. */
+@media (prefers-reduced-motion: reduce) {
+  .sheet,
+  .block {
+    animation: none;
+  }
 }
 
 /* 파스텔은 밝히면 배경에 묻힌다. 눌러 주는 쪽이 눈에 띈다. */
