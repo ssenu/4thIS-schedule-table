@@ -15,6 +15,11 @@
   --alarm-wash: #fbeae8;
   --warn-wash: #f6efd8;
 
+  /* 상단 바에만 쓰는 두 톤. 위에서 빛이 드는 것처럼 보이게 해서
+     조작하는 판을 표 위로 한 겹 띄운다. */
+  --bar-lit: #fdfdfb;
+  --bar-shade: #f3f0ea;
+
   --slot-h: 20px;
   --ruler-w: 46px;
   --col-min: 96px;

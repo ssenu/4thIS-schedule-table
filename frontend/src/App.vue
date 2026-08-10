@@ -408,20 +408,33 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* 화면 높이를 여기서 한 번 나눈다. 예전에는 표가 100vh 에서 상단 바 높이를
+   빼서 제 높이를 짐작했는데, 바 모양을 손볼 때마다 그 숫자가 어긋나 세로
+   스크롤이 생겼다. 이제 남는 높이를 표가 받아 가므로 어긋날 일이 없다. */
 .shell {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
   max-width: 1560px;
   margin: 0 auto;
   padding: 14px 20px 24px;
 }
 
+/* 조작하는 판. 표와 같은 재료(흰 판·테두리·둥근 모서리)를 쓰되 위에서
+   아래로 살짝 어두워지게 해서 두께를 주고, 옅은 그림자로 표 위에 얹는다.
+   예전에는 아래 선 하나뿐이라 페이지 바탕에 묻혀 있었다. */
 .bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding-bottom: 12px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid var(--rule);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  background: linear-gradient(180deg, var(--bar-lit) 0%, var(--bar-shade) 100%);
+  border: 1px solid var(--rule-strong);
+  border-radius: 6px;
+  box-shadow: 0 5px 12px -6px rgb(23 24 28 / 20%);
 }
 
 h1 {
@@ -463,6 +476,8 @@ h1 {
 }
 
 .body {
+  flex: 1;
+  min-height: 0;
   display: flex;
   align-items: flex-start;
   gap: 20px;
@@ -471,10 +486,16 @@ h1 {
 .main {
   flex: 1;
   min-width: 0;
+  /* 이름 목록은 제 내용만큼만 서지만, 표는 남은 높이를 끝까지 쓴다. */
+  align-self: stretch;
+  min-height: 0;
 }
 
 @media (max-width: 860px) {
   .shell {
+    /* 좁은 화면에서는 목록이 표 위에 쌓이고 표도 스크롤한다.
+       뷰포트에 가두면 오히려 갇힌다. */
+    height: auto;
     padding: 12px 12px 20px;
   }
 

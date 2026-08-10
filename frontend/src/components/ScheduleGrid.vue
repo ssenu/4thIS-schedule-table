@@ -742,11 +742,12 @@ function span(schedule: Schedule): string {
 </template>
 
 <style scoped>
-/* 화면 높이에 맞춰 하루치가 통째로 들어간다. 세로 스크롤은 두지 않는다. */
+/* 화면 높이에 맞춰 하루치가 통째로 들어간다. 세로 스크롤은 두지 않는다.
+   높이는 App 이 나눠 준 만큼 받는다 — 상단 바 높이를 여기서 짐작하지 않는다. */
 .frame {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 104px);
+  height: 100%;
 }
 
 .empty {
