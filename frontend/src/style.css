@@ -15,11 +15,6 @@
   --alarm-wash: #fbeae8;
   --warn-wash: #f6efd8;
 
-  /* 종이 위에 인쇄된 괘선. 짙은 갈색 실선(--rule-strong)으로 두르면 테두리가
-     내용보다 먼저 눈에 들어와 화면이 투박해진다. 잉크를 옅게 풀어 쓴다. */
-  --hair: rgb(23 24 28 / 11%);
-  --hair-firm: rgb(23 24 28 / 20%);
-
   --slot-h: 20px;
   --ruler-w: 46px;
   --col-min: 96px;

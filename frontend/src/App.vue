@@ -233,8 +233,8 @@ onUnmounted(() => {
 
   <div v-else-if="store.gateOpen" class="shell">
     <header class="bar">
-      <h1>주간 시간표</h1>
-      <span class="sub">4thIS · 명지전문대학</span>
+      <h1>동아리 주간 시간표</h1>
+      <span class="sub">명지전문대학 4thIS 동아리원 시간표</span>
 
       <span class="spacer" />
 
@@ -418,78 +418,31 @@ onUnmounted(() => {
   height: 100vh;
   max-width: 1560px;
   margin: 0 auto;
-  /* 제목이 활자로 커진 만큼 머리 위 여백도 함께 준다. */
-  padding: 18px 20px 24px;
+  padding: 14px 20px 24px;
 }
 
-/* 게시판에 붙는 인쇄물의 머리글처럼. 판을 깔지 않고 활자와 겹선으로만
-   자리를 잡는다. 글자를 눕히는 선에 도구를 맞춰 세운다.
-   겹선은 옅게 두면 있는지도 모르게 되므로 잉크 쪽으로 당겨 놓는다. */
+/* 선 한 줄로만 표와 나뉜다. 판·그라데이션·활자를 얹어 봤지만 이 상태가
+   가장 조용하고, 표에서 눈을 빼앗지 않았다. */
 .bar {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
-  padding-bottom: 11px;
-  margin-bottom: 15px;
-  border-bottom: 3px double rgb(23 24 28 / 42%);
+  align-items: center;
+  gap: 8px;
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--rule);
 }
 
-/* 자간을 벌린 활자. 굵기 대신 넓이로 무게를 준다.
-   한글은 글자마다 이미 네모난 자리를 차지해서, 영문에 쓰는 만큼(0.14em)
-   벌리면 한 낱말이 아니라 낱글자로 흩어져 읽힌다. 그 절반쯤이 알맞다. */
 h1 {
   margin: 0;
-  font-size: 21px;
-  font-weight: 400;
-  line-height: 1;
-  letter-spacing: 0.07em;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
-/* 제목 옆에 붙는 어깨글. 등폭 글꼴에는 한글이 없어 딴 글꼴로 새는 탓에
-   획이 어긋난다. 본문 글꼴로 두고 자간과 크기로만 각인처럼 만든다. */
 .sub {
-  padding-bottom: 3px;
-  font-size: 10.5px;
-  font-weight: 500;
-  letter-spacing: 0.13em;
+  font-size: 11.5px;
   color: var(--mute);
-}
-
-/* 상단 바 안에서는 버튼이 상자를 벗고 밑줄만 남는다. 도구가 활자 아래
-   같은 선 위에 서서, 머리글 한 덩어리로 읽힌다. */
-.bar .btn {
-  padding: 5px 10px 6px;
-  border: 0;
-  border-bottom: 1px solid rgb(23 24 28 / 30%);
-  border-radius: 0;
-  background: transparent;
-  color: var(--ink-soft);
-  transition: color 120ms ease, border-color 120ms ease;
-}
-
-.bar .btn:hover:not(:disabled) {
-  background: transparent;
-  border-bottom-color: var(--ink);
-  color: var(--ink);
-}
-
-.bar .btn:disabled {
-  border-bottom-color: var(--hair);
-  color: var(--rule-strong);
-}
-
-/* 지금 하고 있는 일. 밑줄을 두 배로 눌러 쓴다. */
-.bar .btn--primary {
-  border-bottom: 2px solid var(--ink);
-  background: transparent;
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.bar .btn--primary:hover {
-  background: transparent;
-  color: var(--ink);
 }
 
 .spacer {
@@ -498,14 +451,12 @@ h1 {
 
 .divider {
   width: 1px;
-  height: 15px;
-  /* 버튼 밑줄과 같은 선 위에 발을 맞춘다. */
-  margin: 0 3px 7px;
-  background: var(--hair-firm);
+  height: 20px;
+  margin: 0 4px;
+  background: var(--rule-strong);
 }
 
 .now {
-  padding-bottom: 6px;
   font-weight: 700;
   letter-spacing: 0.01em;
 }
