@@ -761,8 +761,8 @@ function span(schedule: Schedule): string {
   min-height: 0;
   overflow: hidden;
   background: var(--paper);
-  border: 1px solid var(--rule-strong);
-  border-radius: 6px;
+  border: 1px solid var(--hair-firm);
+  border-radius: 8px;
   touch-action: pan-y;
 }
 
@@ -802,7 +802,7 @@ function span(schedule: Schedule): string {
 .day {
   font-size: 14px;
   font-weight: 700;
-  border-left: 1px solid var(--rule-strong);
+  border-left: 1px solid var(--hair-firm);
 }
 
 .who {
