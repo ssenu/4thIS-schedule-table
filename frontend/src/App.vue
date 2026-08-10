@@ -231,8 +231,9 @@ onUnmounted(() => {
   -->
   <GateScreen v-if="!store.gateOpen && store.gateLoaded" />
 
-  <div v-else-if="store.gateOpen" class="shell">
-    <header class="bar">
+  <div v-else-if="store.gateOpen" class="app-root">
+    <header class="nav">
+      <div class="bar">
       <h1>동아리 주간 시간표</h1>
       <span class="sub">명지전문대학 4thIS 동아리원 시간표</span>
 
@@ -342,9 +343,11 @@ onUnmounted(() => {
       >
         관리자
       </button>
+      </div>
     </header>
 
-    <ErrorBanner />
+    <div class="shell">
+      <ErrorBanner />
 
     <div class="body">
       <MemberPanel />
@@ -367,6 +370,7 @@ onUnmounted(() => {
           @copy="onCopy"
           @clash="onClash"
         />
+      </div>
       </div>
     </div>
 
@@ -408,29 +412,46 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
-/* 화면 높이를 여기서 한 번 나눈다. 예전에는 표가 100vh 에서 상단 바 높이를
-   빼서 제 높이를 짐작했는데, 바 모양을 손볼 때마다 그 숫자가 어긋나 세로
-   스크롤이 생겼다. 이제 남는 높이를 표가 받아 가므로 어긋날 일이 없다. */
-.shell {
-  box-sizing: border-box;
+/* 화면 높이를 여기서 한 번 나눈다. 띠는 제 높이만 쓰고 나머지를 표가 받는다.
+   예전에는 표가 100vh 에서 상단 바 높이를 빼서 제 높이를 짐작했는데, 바 모양을
+   손볼 때마다 그 숫자가 어긋나 세로 스크롤이 생겼다. */
+.app-root {
   display: flex;
   flex-direction: column;
   height: 100vh;
+}
+
+/* 창 끝에서 끝까지 닿는 띠. 색이 깔리는 것은 바깥이고, 안쪽 내용만
+   표와 같은 폭으로 가운데를 맞춘다. */
+.nav {
+  flex: none;
+  background: var(--nav);
+  border-bottom: 1px solid var(--rule);
+}
+
+.shell {
+  box-sizing: border-box;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
   max-width: 1560px;
   margin: 0 auto;
   padding: 14px 20px 24px;
 }
 
-/* 선 한 줄로만 표와 나뉜다. 판·그라데이션·활자를 얹어 봤지만 이 상태가
-   가장 조용하고, 표에서 눈을 빼앗지 않았다. */
+/* 띠 안쪽. 색과 아래 선은 .nav 가 맡고, 여기는 자리만 잡는다. */
 .bar {
+  box-sizing: border-box;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  padding-bottom: 12px;
-  margin-bottom: 14px;
-  border-bottom: 1px solid var(--rule);
+  width: 100%;
+  max-width: 1560px;
+  margin: 0 auto;
+  padding: 11px 20px;
 }
 
 h1 {
@@ -488,10 +509,17 @@ h1 {
 }
 
 @media (max-width: 860px) {
-  .shell {
-    /* 좁은 화면에서는 목록이 표 위에 쌓이고 표도 스크롤한다.
-       뷰포트에 가두면 오히려 갇힌다. */
+  /* 좁은 화면에서는 목록이 표 위에 쌓이고 표도 스크롤한다.
+     뷰포트에 가두면 오히려 갇힌다. */
+  .app-root {
     height: auto;
+  }
+
+  .bar {
+    padding: 10px 12px;
+  }
+
+  .shell {
     padding: 12px 12px 20px;
   }
 

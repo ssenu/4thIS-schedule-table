@@ -15,6 +15,9 @@
   --alarm-wash: #fbeae8;
   --warn-wash: #f6efd8;
 
+  /* 위쪽 띠. 종이와 바탕 사이에 두어 있는 줄은 알겠으되 눈에 걸리지는 않는다. */
+  --nav: #f5f3ee;
+
   --slot-h: 20px;
   --ruler-w: 46px;
   --col-min: 96px;
