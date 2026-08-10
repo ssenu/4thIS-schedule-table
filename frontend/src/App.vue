@@ -49,14 +49,10 @@ const editingMember = computed(() =>
   editingMemberId.value === null ? null : store.memberById(editingMemberId.value),
 )
 
+/** 버튼은 한 사람만 골랐을 때만 나오므로 그 경우만 말하면 된다. */
 const editHint = computed(() => {
-  if (store.selectedIds.length === 0) {
-    return '왼쪽에서 내 이름을 하나 고르세요'
-  }
-  if (store.selectedIds.length > 1) {
-    return '이름을 하나만 고르면 수정할 수 있습니다'
-  }
-  return `${store.memberById(store.selectedIds[0])?.name ?? ''} 시간표 수정`
+  const id = selectedOne.value
+  return id === null ? '' : `${store.memberById(id)?.name ?? ''} 시간표 수정`
 })
 
 /** 입력 중인 내용이 날아가지 않도록 다이얼로그가 열려 있으면 갱신을 미룬다. */
@@ -239,7 +235,10 @@ onUnmounted(() => {
 
       <span class="spacer" />
 
-      <template v-if="editingMember">
+      <!-- 모드가 바뀌면 도구 묶음이 통째로 갈린다. 하나가 물러난 뒤 다음이
+           들어오게(out-in) 해서 버튼이 튀지 않고 자리를 넘겨받는다. -->
+      <Transition name="tools" mode="out-in">
+      <div v-if="editingMember" key="editing" class="tools">
         <button
           type="button"
           class="btn btn--icon"
@@ -268,9 +267,9 @@ onUnmounted(() => {
         <button type="button" class="btn btn--primary" @click="endEditing">
           완료
         </button>
-      </template>
+      </div>
 
-      <template v-else>
+      <div v-else key="viewing" class="tools">
         <button
           type="button"
           class="btn btn--icon"
@@ -292,10 +291,12 @@ onUnmounted(() => {
         >
           이름 등록
         </button>
+        <!-- 한 사람만 골랐을 때만 나온다. 둘 이상이면 누구 걸 고치는지 알 수
+             없어 눌러도 소용이 없으니, 잠긴 채 남겨 두기보다 물러난다. -->
         <button
+          v-if="selectedOne !== null"
           type="button"
           class="btn btn--icon"
-          :disabled="selectedOne === null"
           :title="editHint"
           @click="startEditing"
         >
@@ -315,7 +316,8 @@ onUnmounted(() => {
           </svg>
           수정
         </button>
-      </template>
+      </div>
+      </Transition>
 
       <span class="divider" />
 
@@ -468,6 +470,38 @@ h1 {
 
 .spacer {
   flex: 1;
+}
+
+/* 모드에 따라 통째로 갈리는 도구 묶음. 바 안에서 다시 가로로 늘어선다. */
+.tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 나가는 쪽은 왼쪽으로 물러나고 들어오는 쪽은 오른쪽에서 온다.
+   자리를 넘겨받는 방향이라 눈이 따라가기 쉽다. */
+.tools-enter-active,
+.tools-leave-active {
+  transition: opacity 130ms ease, transform 130ms ease;
+}
+
+.tools-enter-from {
+  opacity: 0;
+  transform: translateX(8px);
+}
+
+.tools-leave-to {
+  opacity: 0;
+  transform: translateX(-8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tools-enter-active,
+  .tools-leave-active {
+    transition: none;
+  }
 }
 
 .divider {
