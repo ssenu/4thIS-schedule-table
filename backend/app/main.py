@@ -14,6 +14,7 @@ from app.db import connect, initialize
 from app.errors import DomainError, TooManyAttempts
 from app.gate import GateKeeper, seed_gate
 from app.routers import auth as auth_router
+from app.routers import backup
 from app.routers import board
 from app.routers import categories
 from app.routers import gate as gate_router
@@ -83,6 +84,7 @@ def create_app(
     app.include_router(categories.router)
     app.include_router(members.router)
     app.include_router(schedules.router)
+    app.include_router(backup.router)
 
     dist = _frontend_dist()
     if dist.is_dir():

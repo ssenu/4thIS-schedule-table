@@ -95,7 +95,7 @@ npm run dev      # http://localhost:5173 — /api 요청은 8000으로 프록시
 테스트:
 
 ```
-cd backend  && .venv/Scripts/python -m pytest    # 177개
+cd backend  && .venv/Scripts/python -m pytest    # 183개
 cd frontend && npm test                          # 116개
 ```
 
@@ -158,6 +158,56 @@ docker run -d -p 8000:8000 \
 > **Vercel 은 쓸 수 없습니다.** Python 함수가 서버리스로 돌아 파일시스템이 읽기
 > 전용이고 요청마다 인스턴스가 새로 뜹니다. SQLite 에 쓴 데이터가 남지 않습니다.
 
+## 백업과 서버 옮기기
+
+DB 는 SQLite 파일 하나(`/data/schedule.db`)입니다. 이 파일만 챙기면 이름·일정·
+카테고리·순서는 물론 **비밀번호 해시와 입장 설정까지** 그대로 따라옵니다.
+
+관리자 비밀번호로 통째로 내려받습니다.
+
+```
+curl -H "X-Gate-Password: 입장비밀번호" \
+     -H "X-Admin-Password: 관리자비밀번호" \
+     https://주소/api/backup -o schedule.db
+```
+
+서버가 돌아가는 중에 받아도 안전합니다 — SQLite 의 온라인 백업으로 그 시점의
+앞뒤가 맞는 복사본을 뜹니다. 파일을 그냥 복사하면 누군가 저장하는 순간에 걸려
+깨진 DB 를 받을 수 있습니다.
+
+> 받은 파일에는 **비밀번호 해시가 들어 있습니다.** 관리자만 받을 수 있게 해 둔
+> 이유이고, 저장소나 단톡방에 올리면 안 됩니다.
+
+### 다른 서버로 옮기기
+
+라즈베리파이처럼 직접 굴리는 서버로 옮길 때는 **호스트 폴더를 붙이는 편**이
+편합니다. 파일을 눈으로 보고 복사할 수 있습니다.
+
+```
+mkdir -p ~/club-data
+curl -H "X-Gate-Password: ..." -H "X-Admin-Password: ..." \
+     https://옛주소/api/backup -o ~/club-data/schedule.db
+
+docker run -d -p 8000:8000 \
+  -e ADMIN_PASSWORD="관리자비밀번호" \
+  -e GATE_PASSWORD="아무거나" \
+  -v ~/club-data:/data \
+  --restart unless-stopped club-schedule
+```
+
+**DB 파일을 먼저 넣고 컨테이너를 띄우세요.** 반대로 하면 빈 DB 가 만들어집니다.
+파일이 먼저 있으면 입장 비밀번호는 옛것이 그대로 이깁니다(`GATE_PASSWORD` 는
+DB 가 비어 있을 때만 심습니다). 관리자 비밀번호만 환경변수 값으로 바뀝니다.
+
+옮긴 뒤 확인:
+
+```
+sqlite3 ~/club-data/schedule.db "SELECT COUNT(*) FROM members;"
+```
+
+직접 굴릴 때 **HTTPS 는 꼭 두세요.** 입장 비밀번호가 요청 헤더에 실려 오갑니다.
+포트포워딩 없이 붙이려면 Cloudflare Tunnel 이 가장 간단합니다.
+
 | 환경변수 | 기본값 | 설명 |
 |---|---|---|
 | `ADMIN_PASSWORD` | (필수) | 관리자 비밀번호. 부팅할 때마다 이 값으로 덮어씁니다 |
@@ -180,7 +230,7 @@ backend/app/
   gate.py        입장 비밀번호·첫 화면 문구, 통과한 비밀번호 기억
   config.py      환경변수 읽기 (없으면 뜨지 않는다)
   schemas.py     Pydantic 입출력 모델
-  routers/       board · auth · gate · categories · members · schedules
+  routers/       board · auth · gate · categories · members · schedules · backup
 frontend/src/
   utils/timeSlot.ts    슬롯 <-> 시간 변환
   utils/gridLayout.ts  격자 열 구성과 블록 배치 (순수 함수 — 브라우저 없이 검증)
