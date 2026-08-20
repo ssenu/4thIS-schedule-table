@@ -1130,7 +1130,11 @@ function span(schedule: Schedule): string {
 
   .sheet {
     overflow: auto;
-    max-height: 62vh;
+    /* 이름 목록이 서랍으로 나갔으니 세로도 표가 받는다. 위 띠와 아래
+       페이지 표시를 뺀 나머지다. dvh 는 주소창이 접히고 펴져도 흔들리지
+       않는 높이고, 모르는 브라우저는 앞줄의 vh 로 산다. */
+    max-height: 74vh;
+    max-height: calc(100dvh - 205px);
   }
 
   .grid {

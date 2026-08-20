@@ -5,6 +5,9 @@ import { api } from '@/api/client'
 import { useBoardStore } from '@/stores/board'
 import type { Member } from '@/types'
 
+/** 좁은 화면에서 서랍이 열려 있는지. 넓은 화면 배치에는 영향이 없다. */
+defineProps<{ open?: boolean }>()
+
 const store = useBoardStore()
 
 /** 드래그는 배열을 직접 뒤집으므로 스토어가 아닌 사본 위에서 다룬다. */
@@ -59,7 +62,7 @@ async function commitAll() {
 </script>
 
 <template>
-  <aside class="side" :class="{ folded: store.sideFolded, dragging }">
+  <aside class="side" :class="{ folded: store.sideFolded, dragging, open }">
     <!-- 목록 오른쪽 위. 접으면 가르는 선 옆으로 나와 펴는 손잡이가 된다. -->
     <button
       type="button"
@@ -366,27 +369,48 @@ h2 {
 }
 
 @media (max-width: 860px) {
+  /* 좁은 화면에서는 목록이 왼쪽 서랍이 된다. 흐름에서 빠져 표가 화면을
+     다 쓰고, 상단의 "이름" 단추로 밀어 연다. */
   .side {
-    width: 100%;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 45;
+    width: min(300px, 84vw);
     flex: none;
-    padding-bottom: 12px;
-    border-right: none;
-    border-bottom: 1px solid var(--rule);
+    padding: 16px 14px;
+    overflow-y: auto;
+    background: var(--page);
+    border-right: 1px solid var(--rule);
+    transform: translateX(-104%);
+    transition: transform 260ms cubic-bezier(0.32, 0.72, 0, 1);
   }
 
-  /* 좁은 화면에서는 목록이 표 위에 놓여 접을 이유가 없다.
-     접어 둔 채로 들어와도 펴서 보여준다. */
+  .side.open {
+    transform: translateX(0);
+    box-shadow: 14px 0 40px -18px rgb(23 24 28 / 35%);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .side {
+      transition: none;
+    }
+  }
+
+  /* 서랍에는 접기 개념이 없다. 닫는 것은 스크림이 맡는다. */
   .fold {
     display: none;
   }
 
   .side.folded {
-    width: 100%;
+    width: min(300px, 84vw);
     flex: none;
   }
 
   .inner {
     width: 100%;
+    transition: none;
   }
 
   .side.folded .inner {
@@ -395,11 +419,11 @@ h2 {
   }
 
   .scroll {
-    max-height: 244px;
+    max-height: none;
     padding-right: 0;
   }
 
-  /* 폭이 넓어지므로 셋으로 묶어 둘 필요가 없다. */
+  /* 서랍 폭에서는 한 줄에 둘이 알맞다. */
   .names {
     grid-template-columns: repeat(auto-fill, minmax(88px, 1fr));
   }

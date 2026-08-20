@@ -34,6 +34,8 @@ const scheduleDialog = ref<{
 const showMyList = ref(false)
 const showCategories = ref(false)
 const showGate = ref(false)
+/** 좁은 화면에서 이름 목록을 담는 왼쪽 서랍. 넓은 화면에서는 뜻이 없다. */
+const panelOpen = ref(false)
 
 /** 수정은 한 사람씩. 둘 이상 고른 채로는 누구 걸 고치는지 알 수 없다. */
 const selectedOne = computed(() =>
@@ -252,6 +254,24 @@ onUnmounted(() => {
   <div v-else-if="store.gateOpen" class="app-root">
     <header class="nav">
       <div class="bar">
+      <!-- 좁은 화면에서만 보인다. 이름 서랍을 연다. -->
+      <button
+        type="button"
+        class="btn btn--icon menu-btn"
+        :aria-expanded="panelOpen"
+        aria-label="이름 목록 열기"
+        @click="panelOpen = true"
+      >
+        <svg viewBox="0 0 16 16" width="15" height="15" fill="none"
+          stroke="currentColor" stroke-width="1.6" stroke-linecap="round"
+          aria-hidden="true">
+          <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
+        </svg>
+        이름
+        <span v-if="store.selectedIds.length" class="menu-count">
+          {{ store.selectedIds.length }}
+        </span>
+      </button>
       <h1>동아리 주간 시간표</h1>
       <span class="sub">명지전문대학 4thIS 동아리원 시간표</span>
       <span class="byline">by_ssenu</span>
@@ -378,7 +398,16 @@ onUnmounted(() => {
       <ErrorBanner />
 
     <div class="body">
-      <MemberPanel />
+      <!-- 좁은 화면에서 서랍이 열리면 뒤를 덮는다. 누르면 닫힌다. -->
+      <Transition name="scrim">
+        <div
+          v-if="panelOpen"
+          class="scrim"
+          aria-hidden="true"
+          @click="panelOpen = false"
+        />
+      </Transition>
+      <MemberPanel :open="panelOpen" />
 
       <div class="main">
         <p v-if="editingMember" class="guide">
@@ -601,9 +630,29 @@ h1 {
   min-height: 0;
 }
 
+/* 이름 서랍을 여는 단추. 넓은 화면에서는 목록이 항상 보이므로 없다. */
+.menu-btn {
+  display: none;
+}
+
+.menu-count {
+  min-width: 16px;
+  padding: 1px 4px;
+  border-radius: 99px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 10px;
+  line-height: 1.3;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.scrim {
+  display: none;
+}
+
 @media (max-width: 860px) {
-  /* 좁은 화면에서는 목록이 표 위에 쌓이고 표도 스크롤한다.
-     뷰포트에 가두면 오히려 갇힌다. */
+  /* 좁은 화면에서는 표가 스크롤한다. 뷰포트에 가두면 오히려 갇힌다. */
   .app-root {
     height: auto;
   }
@@ -616,11 +665,32 @@ h1 {
     padding: 12px 12px 20px;
   }
 
+  /* 이름 목록은 서랍으로 나가 흐름에서 빠진다. 표가 화면을 다 쓴다. */
   .body {
-    flex-direction: column;
-    /* 세로로 쌓이면 flex-start 는 가로 정렬이 되어 자식이 내용 폭으로 줄어든다. */
     align-items: stretch;
-    gap: 14px;
+  }
+
+  .menu-btn {
+    display: inline-flex;
+  }
+
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 44;
+    background: rgb(23 24 28 / 34%);
+    touch-action: none;
+  }
+
+  .scrim-enter-active,
+  .scrim-leave-active {
+    transition: opacity 220ms ease;
+  }
+
+  .scrim-enter-from,
+  .scrim-leave-to {
+    opacity: 0;
   }
 
   .spacer {
