@@ -41,6 +41,15 @@ body {
   font-size: 13px;
 }
 
+/* 좁은 화면은 세로로 스크롤한다. 표가 나타나는 순간 스크롤바가 생기며
+   폭이 줄면 이름 박스들이 좁아지며 들썩이므로, 자리를 미리 비워 둔다.
+   진짜 휴대폰의 스크롤바는 떠 있는 형태라 이 값이 아무 일도 하지 않는다. */
+@media (max-width: 860px) {
+  html {
+    scrollbar-gutter: stable;
+  }
+}
+
 :focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;

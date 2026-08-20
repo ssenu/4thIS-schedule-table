@@ -91,6 +91,9 @@ async function commitAll() {
       >
         <h2>{{ category.name }}</h2>
 
+        <!-- 손가락에서는 길게 눌러야(250ms) 끌기가 시작된다. 탭은 손끝이
+             몇 px 씩 흔들리기 마련이라, 그대로 두면 고르려던 이름이 들려
+             움직인다. 마우스는 흔들리지 않으므로 기다리지 않는다. -->
         <draggable
           v-model="groups[category.id]"
           class="names"
@@ -99,6 +102,9 @@ async function commitAll() {
           :animation="180"
           :force-fallback="true"
           :fallback-on-body="true"
+          :delay="250"
+          :delay-on-touch-only="true"
+          :touch-start-threshold="6"
           ghost-class="ghost"
           chosen-class="chosen"
           drag-class="flying"

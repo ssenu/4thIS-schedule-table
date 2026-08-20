@@ -254,6 +254,7 @@ onUnmounted(() => {
       <div class="bar">
       <h1>동아리 주간 시간표</h1>
       <span class="sub">명지전문대학 4thIS 동아리원 시간표</span>
+      <span class="byline">by_ssenu</span>
 
       <span class="spacer" />
 
@@ -491,6 +492,14 @@ h1 {
 .sub {
   font-size: 11.5px;
   color: var(--mute);
+}
+
+/* 만든 사람 서명. 부제보다도 한 발 물러난, 게이트 첫 화면과 같은 표기다. */
+.byline {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.02em;
+  color: var(--rule-strong);
 }
 
 .spacer {
